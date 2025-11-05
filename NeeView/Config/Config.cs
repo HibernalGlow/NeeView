@@ -1,4 +1,5 @@
 ﻿using NeeLaboratory.ComponentModel;
+using NeeView.SuperResolution;
 using System;
 using System.Collections;
 using System.Diagnostics;
@@ -102,6 +103,9 @@ namespace NeeView
         public ControlConfig Control { get; set; } = new ControlConfig();
 
         public ImageEffectConfig ImageEffect { get; set; } = new ImageEffectConfig();
+
+        [PropertyMapLabel("SuperResolution.Title")]
+        public SuperResolutionConfig SuperResolution { get; set; } = new SuperResolutionConfig();
 
         [PropertyMapLabel("Effect.CustomSize")]
         public ImageCustomSizeConfig ImageCustomSize { get; set; } = new ImageCustomSizeConfig();

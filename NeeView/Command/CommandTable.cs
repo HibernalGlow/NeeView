@@ -2,6 +2,7 @@
 using NeeLaboratory.Generators;
 using NeeView.Data;
 using NeeView.Properties;
+using NeeView.SuperResolution;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -164,6 +165,7 @@ namespace NeeView
                 new ToggleVisibleFileInfoCommand(),
                 new ToggleVisibleNavigatorCommand(),
                 new ToggleVisibleEffectInfoCommand(),
+                new ToggleVisibleSuperResolutionCommand(),
                 new ToggleVisibleFoldersTreeCommand(),
                 new FocusFolderSearchBoxCommand(),
                 new FocusBookmarkSearchBoxCommand(),
@@ -301,6 +303,10 @@ namespace NeeView
                 new ToggleResizeFilterCommand(),
                 new ToggleGridCommand(),
                 new ToggleEffectCommand(),
+                
+                // Super Resolution
+                new ProcessCurrentImageWithSuperResolutionCommand(),
+                new OpenBatchSuperResolutionCommand(),
 
                 new ToggleIsLoupeCommand(),
                 new LoupeOnCommand(),

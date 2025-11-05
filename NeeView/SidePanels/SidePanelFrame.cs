@@ -84,6 +84,7 @@ namespace NeeView
             RaisePropertyChanged(nameof(IsVisiblePageList));
             RaisePropertyChanged(nameof(IsVisibleFileInfo));
             RaisePropertyChanged(nameof(IsVisibleEffectInfo));
+            RaisePropertyChanged(nameof(IsVisibleSuperResolution));
             RaisePropertyChanged(nameof(IsVisibleNavigator));
             RaisePropertyChanged(nameof(IsVisiblePlaylist));
         }
@@ -149,6 +150,25 @@ namespace NeeView
         public bool ToggleVisibleEffectInfo(bool byMenu)
         {
             return ToggleVisiblePanel(nameof(ImageEffectPanel), byMenu);
+        }
+
+
+
+        // 超分辨率面板显示ON/OFF
+        public bool IsVisibleSuperResolution
+        {
+            get { return IsVisiblePanel(nameof(SuperResolutionPanel)); }
+            set { SetVisiblePanel(nameof(SuperResolutionPanel), value); }
+        }
+
+        public void SetVisibleSuperResolution(bool isVisible, bool flush)
+        {
+            SetVisiblePanel(nameof(SuperResolutionPanel), isVisible);
+        }
+
+        public bool ToggleVisibleSuperResolution(bool byMenu)
+        {
+            return ToggleVisiblePanel(nameof(SuperResolutionPanel), byMenu);
         }
 
 

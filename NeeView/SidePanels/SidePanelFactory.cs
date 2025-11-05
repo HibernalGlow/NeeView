@@ -1,4 +1,5 @@
 ﻿using NeeView.Effects;
+using NeeView.SuperResolution;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,6 +22,7 @@ namespace NeeView
                 nameof(FileInformationPanel) => new FileInformationPanel(FileInformation.Current),
                 nameof(NavigatePanel) => new NavigatePanel(NavigateModel.Current),
                 nameof(ImageEffectPanel) => new ImageEffectPanel(ImageEffect.Current),
+                nameof(SuperResolutionPanel) => new SuperResolutionPanel(Config.Current.SuperResolution),
                 nameof(BookmarkPanel) => new BookmarkPanel(BookmarkFolderList.Current),
                 nameof(PageListPanel) => new PageListPanel(PageList.Current),
                 nameof(PlaylistPanel) => new PlaylistPanel(PlaylistHub.Current),
