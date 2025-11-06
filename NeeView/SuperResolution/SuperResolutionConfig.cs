@@ -205,5 +205,23 @@ namespace NeeView.SuperResolution
             get => _cachePath;
             set => SetProperty(ref _cachePath, value ?? "");
         }
+
+        /// <summary>
+        /// Python 安装路径 (用于 Python 引擎)
+        /// </summary>
+        private string _pythonPath = "";
+        [DataMember]
+        [DefaultValue("")]
+        public string PythonPath
+        {
+            get => _pythonPath;
+            set => SetProperty(ref _pythonPath, value ?? "");
+        }
+
+        /// <summary>
+        /// 单例实例
+        /// </summary>
+        [JsonIgnore]
+        public static SuperResolutionConfig Current { get; set; } = new SuperResolutionConfig();
     }
 }

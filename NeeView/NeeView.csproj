@@ -90,6 +90,7 @@
     <PackageReference Include="SharpVectors" Version="1.8.4.2" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.113.7" />
     <PackageReference Include="VirtualizingWrapPanel" Version="2.3.1" />
+    <PackageReference Include="pythonnet" Version="3.0.4" />
   </ItemGroup>
 
   <ItemGroup>

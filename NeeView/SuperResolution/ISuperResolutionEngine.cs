@@ -191,12 +191,12 @@ namespace NeeView.SuperResolution
             {
                 SuperResolutionType.None => throw new ArgumentException("Cannot create engine for None type"),
                 
-                // TODO: 集成实际的引擎
-                // SuperResolutionType.Waifu2x => new NcnnEngine(),
-                // SuperResolutionType.RealESRGAN => new RealESRGANEngine(),
-                // SuperResolutionType.RealCUGAN => new RealCUGANEngine(),
+                // 使用 Python sr-vulkan 引擎 (picacg-qt 同款)
+                SuperResolutionType.Waifu2x => new PythonSuperResolutionEngine(),
+                SuperResolutionType.RealESRGAN => new PythonSuperResolutionEngine(),
+                SuperResolutionType.RealCUGAN => new PythonSuperResolutionEngine(),
                 
-                // 目前返回模拟引擎
+                // 兜底返回模拟引擎
                 _ => new MockSuperResolutionEngine(),
             };
         }
@@ -206,8 +206,14 @@ namespace NeeView.SuperResolution
         /// </summary>
         public static ISuperResolutionEngine GetDefaultEngine()
         {
-            // TODO: 根据可用性选择最佳引擎
-            // 目前返回模拟引擎
+            // 优先使用 Python 引擎
+            var pythonEngine = new PythonSuperResolutionEngine();
+            if (pythonEngine.IsAvailable)
+            {
+                return pythonEngine;
+            }
+
+            // 如果 Python 不可用,返回模拟引擎
             return new MockSuperResolutionEngine();
         }
     }
