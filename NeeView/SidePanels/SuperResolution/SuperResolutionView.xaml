@@ -84,6 +84,50 @@
                 </StackPanel>
             </GroupBox>
 
+            <!-- 自动超分设置 -->
+            <GroupBox Header="自动超分" Margin="0,10">
+                <StackPanel>
+                    <CheckBox Content="查看图片时自动超分" 
+                             IsChecked="{Binding Config.AutoApplyOnView}"
+                             Margin="0,5"
+                             ToolTip="打开图片时自动应用超分辨率处理"/>
+                    
+                    <StackPanel Visibility="{Binding Config.AutoApplyOnView, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="自动超分最大尺寸:" Margin="0,10,0,3"/>
+                        <TextBox Text="{Binding Config.AutoApplyMaxSize, UpdateSourceTrigger=PropertyChanged}" 
+                                Margin="0,0,0,3"
+                                ToolTip="超过此尺寸(像素)的图片不会自动超分"/>
+                        <TextBlock Text="(避免内存溢出)" FontSize="10" Foreground="Gray"/>
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- 高级设置 -->
+            <GroupBox Header="高级设置" Margin="0,10">
+                <StackPanel>
+                    <TextBlock Text="模型文件路径:" Margin="0,5,0,3"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" 
+                                Text="{Binding Config.ModelPath, UpdateSourceTrigger=PropertyChanged}"
+                                IsReadOnly="True"
+                                ToolTip="sr_vulkan 模型文件存放路径,空表示使用默认路径"/>
+                        <Button Grid.Column="1" 
+                               Content="..." 
+                               Margin="5,0,0,0" 
+                               Padding="10,0"
+                               Click="BrowseModelPath_Click"/>
+                    </Grid>
+                    <TextBlock Text="(空表示使用默认路径: ~/.cache/sr-vulkan/)" 
+                              FontSize="10" 
+                              Foreground="Gray"
+                              Margin="0,2,0,0"/>
+                </StackPanel>
+            </GroupBox>
+
             <!-- 操作按钮 -->
             <Button Content="处理当前图片" 
                    Margin="0,15"

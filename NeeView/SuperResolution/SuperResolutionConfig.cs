@@ -183,6 +183,19 @@ namespace NeeView.SuperResolution
         }
 
         /// <summary>
+        /// 自动超分的最大图片尺寸 (宽或高,像素)
+        /// 超过此尺寸的图片不会自动超分,避免内存溢出
+        /// </summary>
+        private int _autoApplyMaxSize = 4096;
+        [DataMember]
+        [DefaultValue(4096)]
+        public int AutoApplyMaxSize
+        {
+            get => _autoApplyMaxSize;
+            set => SetProperty(ref _autoApplyMaxSize, Math.Max(256, value));
+        }
+
+        /// <summary>
         /// 是否缓存处理结果
         /// </summary>
         private bool _cacheResults = true;
@@ -216,6 +229,19 @@ namespace NeeView.SuperResolution
         {
             get => _pythonPath;
             set => SetProperty(ref _pythonPath, value ?? "");
+        }
+
+        /// <summary>
+        /// sr_vulkan 模型文件路径
+        /// 空字符串表示使用默认路径 (~/.cache/sr-vulkan/)
+        /// </summary>
+        private string _modelPath = "";
+        [DataMember]
+        [DefaultValue("")]
+        public string ModelPath
+        {
+            get => _modelPath;
+            set => SetProperty(ref _modelPath, value ?? "");
         }
 
         /// <summary>
