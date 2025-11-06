@@ -45,13 +45,7 @@ namespace NeeView.SuperResolution
                 var archiveEntry = page.ArchiveEntry;
                 if (archiveEntry != null)
                 {
-                    using var stream = await archiveEntry.OpenStreamAsync();
-                    if (stream != null)
-                    {
-                        using var memoryStream = new MemoryStream();
-                        await stream.CopyToAsync(memoryStream, cancellationToken);
-                        return memoryStream.ToArray();
-                    }
+                    return archiveEntry.Load();
                 }
 
                 return null;
@@ -87,9 +81,9 @@ namespace NeeView.SuperResolution
                 var content = page.Content;
                 
                 // 尝试从PageContent获取BitmapSource
-                if (content.PictureInfo?.BitmapSource != null)
+                if (content.Data is BitmapSource bitmapSource)
                 {
-                    return content.PictureInfo.BitmapSource;
+                    return bitmapSource;
                 }
 
                 return null;
@@ -179,8 +173,8 @@ namespace NeeView.SuperResolution
                 var content = page.Content;
                 
                 string fileName = page.EntryLastName;
-                int width = content.PictureInfo?.OriginalSize.Width ?? 0;
-                int height = content.PictureInfo?.OriginalSize.Height ?? 0;
+                int width = (int)(content.PictureInfo?.OriginalSize.Width ?? 0);
+                int height = (int)(content.PictureInfo?.OriginalSize.Height ?? 0);
 
                 return (fileName, width, height);
             }

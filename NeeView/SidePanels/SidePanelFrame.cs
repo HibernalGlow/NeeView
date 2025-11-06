@@ -1,6 +1,7 @@
 ﻿using NeeLaboratory.ComponentModel;
 using NeeView.Effects;
 using NeeView.Native;
+using NeeView.SuperResolution;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
