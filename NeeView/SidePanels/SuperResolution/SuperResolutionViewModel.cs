@@ -3,6 +3,7 @@ using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using NeeLaboratory.Windows.Input;
 
 namespace NeeView.SuperResolution
 {

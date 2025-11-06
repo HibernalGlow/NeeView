@@ -45,7 +45,11 @@ namespace NeeView.SuperResolution
                 var archiveEntry = page.ArchiveEntry;
                 if (archiveEntry != null)
                 {
-                    return archiveEntry.Load();
+                    // 使用OpenStreamAsync获取数据流并转换为字节数组
+                    using var stream = await archiveEntry.OpenEntryAsync(false, cancellationToken);
+                    using var memoryStream = new MemoryStream();
+                    await stream.CopyToAsync(memoryStream, cancellationToken);
+                    return memoryStream.ToArray();
                 }
 
                 return null;

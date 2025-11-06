@@ -158,18 +158,18 @@ namespace NeeView
         // 超分辨率面板显示ON/OFF
         public bool IsVisibleSuperResolution
         {
-            get { return IsVisiblePanel(nameof(SuperResolutionPanel)); }
-            set { SetVisiblePanel(nameof(SuperResolutionPanel), value); }
+            get { return IsVisiblePanel(nameof(NeeView.SuperResolution.SuperResolutionPanel)); }
+            set { SetVisiblePanel(nameof(NeeView.SuperResolution.SuperResolutionPanel), value); }
         }
 
         public void SetVisibleSuperResolution(bool isVisible, bool flush)
         {
-            SetVisiblePanel(nameof(SuperResolutionPanel), isVisible);
+            SetVisiblePanel(nameof(NeeView.SuperResolution.SuperResolutionPanel), isVisible);
         }
 
         public bool ToggleVisibleSuperResolution(bool byMenu)
         {
-            return ToggleVisiblePanel(nameof(SuperResolutionPanel), byMenu);
+            return ToggleVisiblePanel(nameof(NeeView.SuperResolution.SuperResolutionPanel), byMenu);
         }
 
 

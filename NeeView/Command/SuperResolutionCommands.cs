@@ -30,7 +30,7 @@ namespace NeeView.SuperResolution
                 var imageInfo = ImageDataHelper.GetCurrentImageInfo();
                 if (imageInfo == null)
                 {
-                    InfoMessage.Current.SetMessage(InfoMessageType.Notification, 
+                    InfoMessage.Current.SetMessage(InfoMessageType.Notify, 
                         "No image to process");
                     return;
                 }
@@ -38,14 +38,14 @@ namespace NeeView.SuperResolution
                 var (fileName, width, height) = imageInfo.Value;
 
                 // 显示处理中提示
-                InfoMessage.Current.SetMessage(InfoMessageType.Notification, 
+                InfoMessage.Current.SetMessage(InfoMessageType.Notify, 
                     $"Processing {fileName} ({width}x{height}) with super resolution...");
 
                 // 获取图片数据
                 var imageData = await ImageDataHelper.GetCurrentImageDataAsync();
                 if (imageData == null || imageData.Length == 0)
                 {
-                    InfoMessage.Current.SetMessage(InfoMessageType.Error, 
+                    InfoMessage.Current.SetMessage(InfoMessageType.Notify, 
                         "Failed to get image data");
                     return;
                 }
@@ -54,10 +54,7 @@ namespace NeeView.SuperResolution
                 var config = Config.Current.SuperResolution;
                 var result = await SuperResolutionService.Current.ProcessAsync(
                     imageData, 
-                    config.ScaleMode,
-                    config.ScaleFactor,
-                    config.TargetWidth,
-                    config.TargetHeight);
+                    config);
 
                 if (result.Success && result.OutputData != null)
                 {
@@ -66,27 +63,27 @@ namespace NeeView.SuperResolution
                     
                     if (shown)
                     {
-                        var message = config.ScaleMode == ScaleMode.ByFactor
+                        var message = config.ScaleMode == ScaleMode.ScaleFactor
                             ? $"Super resolution completed: {fileName} scaled by {config.ScaleFactor}x"
                             : $"Super resolution completed: {fileName} resized to {config.TargetWidth}x{config.TargetHeight}";
                         
-                        InfoMessage.Current.SetMessage(InfoMessageType.Notification, message);
+                        InfoMessage.Current.SetMessage(InfoMessageType.Notify, message);
                     }
                     else
                     {
-                        InfoMessage.Current.SetMessage(InfoMessageType.Error, 
+                        InfoMessage.Current.SetMessage(InfoMessageType.Notify, 
                             "Processing completed but failed to display result");
                     }
                 }
                 else
                 {
-                    InfoMessage.Current.SetMessage(InfoMessageType.Error, 
+                    InfoMessage.Current.SetMessage(InfoMessageType.Notify, 
                         $"Processing failed: {result.ErrorMessage ?? "Unknown error"}");
                 }
             }
             catch (Exception ex)
             {
-                InfoMessage.Current.SetMessage(InfoMessageType.Error, 
+                InfoMessage.Current.SetMessage(InfoMessageType.Notify, 
                     $"Error: {ex.Message}");
             }
         }
@@ -114,7 +111,7 @@ namespace NeeView.SuperResolution
             // var window = new BatchProcessWindow(Config.Current.SuperResolution);
             // window.Show();
             
-            InfoMessage.Current.SetMessage(InfoMessageType.Notification, 
+            InfoMessage.Current.SetMessage(InfoMessageType.Notify, 
                 "Batch processing window (to be implemented)");
         }
     }
