@@ -1,0 +1,19 @@
+﻿using System;
+using Vlc.DotNet.Core.Interops.Signatures;
+
+namespace Vlc.DotNet.Core.Interops
+{
+    public sealed partial class VlcManager
+    {
+        public int AttachEvent(VlcEventManagerInstance eventManagerInstance, EventTypes eventType, EventCallback callback)
+        {
+            if (disposedValue) throw new ObjectDisposedException(GetType().FullName);
+
+            if (eventManagerInstance == IntPtr.Zero)
+                throw new ArgumentException("Event manager instance is not initialized.");
+            if (callback == null)
+                throw new ArgumentException("Callback for event is not initialized.");
+            return myLibraryLoader.GetInteropDelegate<AttachEvent>().Invoke(eventManagerInstance, eventType, callback, IntPtr.Zero);
+        }
+    }
+}

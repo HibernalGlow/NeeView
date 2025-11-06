@@ -1,0 +1,24 @@
+﻿using System;
+using Vlc.DotNet.Core.Interops.Signatures;
+
+namespace Vlc.DotNet.Core.Interops
+{
+    public sealed partial class VlcManager
+    {
+        public void ReleaseMediaPlayer(VlcMediaPlayerInstance mediaPlayerInstance)
+        {
+            //if (disposedValue) throw new ObjectDisposedException(GetType().FullName);
+
+            if (mediaPlayerInstance == IntPtr.Zero)
+                return;
+            try
+            {
+                myLibraryLoader.GetInteropDelegate<ReleaseMediaPlayer>().Invoke(mediaPlayerInstance);
+            }
+            finally
+            {
+                mediaPlayerInstance.Pointer = IntPtr.Zero;
+            }
+        }
+    }
+}

@@ -1,0 +1,21 @@
+<Project>
+  <PropertyGroup>
+    <PackageTargetFrameworks>net9.0</PackageTargetFrameworks>
+    <WindowsPackageTargetFrameworks>net9.0-windows</WindowsPackageTargetFrameworks>
+    <TestTargetFrameworks>net9.0</TestTargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AvaloniaVersion>11.0.0</AvaloniaVersion>
+    <SharpCompressVersion>0.36.0</SharpCompressVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <MyProjectVersion>2.1.2</MyProjectVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TestPackageFolderName>nativenupkg</TestPackageFolderName>
+    <TestPackageFolder>$(MSBuildStartupDirectory)/$(TestPackageFolderName)</TestPackageFolder>
+  </PropertyGroup>
+</Project>

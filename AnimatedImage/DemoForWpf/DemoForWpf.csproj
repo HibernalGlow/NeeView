@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <Import Project="..\AnimatedImage.props" />
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net8.0-windows</TargetFrameworks>
+    <UseWPF>true</UseWPF>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AnimatedImage.Wpf\AnimatedImage.Wpf.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Images\siteoforigin.gif" CopyToOutputDirectory="PreserveNewest" />
+    <Resource Include="Images\bomb-once.gif" />
+    <Resource Include="Images\Bomb.gif" />
+    <Resource Include="Images\BouncingBeachBall.png" />
+    <Resource Include="Images\earth.gif" />
+    <Resource Include="Images\monster.gif" />
+    <Resource Include="Images\nonanimated.png" />
+    <Resource Include="Images\nonanimated.gif" />
+    <Resource Include="Images\UnsupportImageFormat.bmp" />
+    <Resource Include="Images\partialfirstframe.gif" />
+    <Resource Include="Images\pause.png" />
+    <Resource Include="Images\play.png" />
+    <Resource Include="Images\radar.gif" />
+    <Resource Include="Images\working.gif" />
+    <Resource Include="images/stickman.webp" />
+    <Resource Include="images/nonanimated.webp" />
+    <Resource Include="images/nonanimated_lossless.webp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AnimatedImage.Native" Version="*-*"/>
+  </ItemGroup>
+</Project>
