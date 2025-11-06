@@ -229,22 +229,88 @@ namespace NeeView.SuperResolution
 
             IsProcessing = true;
             Progress = 0;
-            StatusMessage = "Processing...";
+            StatusMessage = "正在处理...";
 
             try
             {
-                // TODO: 获取当前显示的图片
-                // 这需要与NeeView的图片显示系统集成
+                // 获取当前显示的图片
+                var book = BookOperation.Current.Book;
+                if (book == null || book.CurrentPage == null)
+                {
+                    StatusMessage = "没有打开的图片";
+                    SuperResolutionLogger.Warning("尝试处理图片,但没有打开的 Book 或页面");
+                    return;
+                }
+
+                var currentPage = book.CurrentPage;
+                SuperResolutionLogger.Info($"开始处理当前图片: {currentPage.EntryFullName}");
                 
-                // 临时模拟处理
-                await Task.Delay(1000);
+                // 获取图片数据
+                byte[]? imageData = null;
                 
-                Progress = 100;
-                StatusMessage = "Processing completed";
+                // 从 ArchiveEntry 获取原始数据
+                var entry = currentPage.ArchiveEntry;
+                if (entry != null)
+                {
+                    try
+                    {
+                        var fileProxy = await entry.GetFileProxyAsync(false, System.Threading.CancellationToken.None);
+                        imageData = await System.IO.File.ReadAllBytesAsync(fileProxy.Path);
+                        
+                        SuperResolutionLogger.Info($"成功读取图片数据: {imageData.Length / 1024.0:F2} KB");
+                    }
+                    catch (Exception ex)
+                    {
+                        SuperResolutionLogger.Error($"读取图片数据失败: {ex.Message}", ex);
+                        StatusMessage = $"读取图片失败: {ex.Message}";
+                        return;
+                    }
+                }
+
+                if (imageData == null || imageData.Length == 0)
+                {
+                    StatusMessage = "无法获取图片数据";
+                    SuperResolutionLogger.Error("图片数据为空");
+                    return;
+                }
+
+                // 调用超分服务
+                Progress = 10;
+                StatusMessage = "正在进行超分辨率处理...";
+                
+                var result = await _service.ProcessAsync(imageData, _config, System.Threading.CancellationToken.None);
+                
+                if (result.Success && result.OutputData != null && result.OutputData.Length > 0)
+                {
+                    Progress = 90;
+                    StatusMessage = "保存处理结果...";
+                    
+                    // 保存到临时文件并显示
+                    var tempPath = System.IO.Path.Combine(
+                        System.IO.Path.GetTempPath(),
+                        $"NeeView_SR_{DateTime.Now:yyyyMMdd_HHmmss}.png"
+                    );
+                    
+                    await System.IO.File.WriteAllBytesAsync(tempPath, result.OutputData);
+                    SuperResolutionLogger.Info($"超分结果已保存: {tempPath}");
+                    
+                    // 在 NeeView 中打开结果
+                    BookHub.Current.RequestLoad(this, tempPath, null, BookLoadOption.None, true);
+                    
+                    Progress = 100;
+                    StatusMessage = $"处理完成! 耗时: {result.ProcessingTime:F2}s";
+                    SuperResolutionLogger.Info($"超分处理成功完成");
+                }
+                else
+                {
+                    StatusMessage = $"处理失败: {result.ErrorMessage}";
+                    SuperResolutionLogger.Error($"超分处理失败: {result.ErrorMessage}");
+                }
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Error: {ex.Message}";
+                StatusMessage = $"错误: {ex.Message}";
+                SuperResolutionLogger.Error($"处理图片时发生异常: {ex.Message}", ex);
             }
             finally
             {
