@@ -88,6 +88,40 @@ namespace NeeView.SuperResolution
                                 _srModule = Py.Import("sr_vulkan.sr_vulkan");
                                 SuperResolutionLogger.Info("sr_vulkan 模块导入成功");
                                 
+                                // 1. 基础初始化 (必须!)
+                                SuperResolutionLogger.Info("调用 sr.init()...");
+                                int initResult = (int)_srModule.init();
+                                SuperResolutionLogger.Info($"sr.init() 返回: {initResult}");
+                                
+                                if (initResult < 0)
+                                {
+                                    SuperResolutionLogger.Warning($"GPU 初始化返回负值 (可能使用 CPU 模式): {initResult}");
+                                }
+                                
+                                // 启用调试模式
+                                try
+                                {
+                                    _srModule.setDebug(true);
+                                    SuperResolutionLogger.Info("已启用 sr_vulkan 调试模式");
+                                }
+                                catch
+                                {
+                                    SuperResolutionLogger.Warning("setDebug 方法不可用");
+                                }
+                                
+                                // 2. 设置 GPU 和线程数 (必须调用!否则模型无法使用)
+                                // 参考 picacg-qt: sr.initSet(config.Encode, config.UseCpuNum)
+                                SuperResolutionLogger.Info($"调用 sr.initSet({gpuId}, 0)...");
+                                int initSetResult = (int)_srModule.initSet(gpuId, 0);  // 0 = 自动线程数
+                                SuperResolutionLogger.Info($"sr.initSet() 返回: {initSetResult}");
+                                
+                                if (initSetResult < 0)
+                                {
+                                    _lastError = $"sr.initSet 失败,返回码: {initSetResult}";
+                                    SuperResolutionLogger.Error(_lastError);
+                                    return false;
+                                }
+                                
                                 // 获取 sr_vulkan 版本信息
                                 try
                                 {
@@ -275,11 +309,13 @@ namespace NeeView.SuperResolution
                     {
                         using (Py.GIL())
                         {
-                            // 获取模型常量 (sr_vulkan 使用 MODEL_* 常量)
+                            // 获取模型常量 (sr_vulkan 使用整数 ID, 例如 MODEL_WAIFU2X_ANIME_UP2X = 18)
                             var modelName = GetPythonModelName(_loadedModel);
                             SuperResolutionLogger.Info($"使用模型常量: {modelName}");
                             
                             dynamic modelConstant = _srModule!.GetAttr(modelName);
+                            int modelId = (int)modelConstant;
+                            SuperResolutionLogger.Info($"模型 ID: {modelId}");
 
                             // 转换字节数组为 Python bytes
                             dynamic builtins = Py.Import("builtins");
@@ -287,60 +323,102 @@ namespace NeeView.SuperResolution
                             SuperResolutionLogger.Info($"已转换输入数据为 Python bytes (处理后大小: {processData.Length} bytes)");
 
                             // 调用 sr_vulkan.add()
-                            // API: add(data:bytes, modelIndex:MODEL, backId:int, scale:float, format:str="", tileSize:int=400)
-                            // backId 是任务标识符,可以随意指定
-                            int taskId = System.Environment.TickCount;
+                            // 参考 picacg-qt: sr.add(data, model_id, task_id, scale, format=mat, tileSize=tileSize)
+                            // taskId 用于匹配返回结果
+                            int taskId = System.Environment.TickCount & 0x7FFFFFFF;  // 确保正数
                             
-                            SuperResolutionLogger.Info($"调用 sr_vulkan.add() with backId={taskId}, scale={scale}...");
+                            SuperResolutionLogger.Info($"调用 sr_vulkan.add() with taskId={taskId}, modelId={modelId}, scale={scale}...");
                             
-                            int procId = (int)_srModule.add(
-                                inputPyBytes,           // data
-                                modelConstant,          // modelIndex
-                                taskId,                 // backId (任务ID)
-                                scale,                  // scale (缩放倍数)
-                                new PyString("png"),    // format
-                                tileSize > 0 ? tileSize : 400  // tileSize
-                            );
+                            // 根据 picacg-qt 的调用方式:
+                            // if scale <= 0:
+                            //     sr.add(data, model, taskId, width, height, format=mat, tileSize=tileSize)
+                            // else:
+                            //     sr.add(data, model, taskId, scale, format=mat, tileSize=tileSize)
+                            
+                            int procId;
+                            if (scale > 0)
+                            {
+                                // 使用 scale 模式
+                                // 参考 picacg-qt: sr.add(data, model, taskId, scale, format=mat, tileSize=tileSize)
+                                if (tileSize > 0)
+                                {
+                                    procId = (int)_srModule.add(
+                                        inputPyBytes,           // data
+                                        new PyInt(modelId),     // model
+                                        new PyInt(taskId),      // taskId (backId)
+                                        new PyInt((int)scale),  // scale
+                                        format: new PyString("png"),
+                                        tileSize: new PyInt(tileSize)
+                                    );
+                                }
+                                else
+                                {
+                                    // 不指定 tileSize,使用默认值
+                                    procId = (int)_srModule.add(
+                                        inputPyBytes,           // data
+                                        new PyInt(modelId),     // model
+                                        new PyInt(taskId),      // taskId (backId)
+                                        new PyInt((int)scale),  // scale
+                                        format: new PyString("png")
+                                    );
+                                }
+                            }
+                            else
+                            {
+                                // 使用固定尺寸模式 (暂不支持)
+                                throw new NotSupportedException("固定尺寸模式暂不支持");
+                            }
                             
                             SuperResolutionLogger.Info($"sr_vulkan.add() 返回 procId: {procId}");
 
                             // 轮询等待结果 (最多等待30秒)
-                            // load() 返回 Union[None, Tuple[bytes, str, int, float]] = (data, format, backId, tick)
+                            // load(0) 返回 (data:bytes, format:str, taskId:int, tick:float) 或 None
                             SuperResolutionLogger.Info("开始轮询处理结果...");
                             dynamic? result = null;
                             byte[]? processedData = null;
                             int pollCount = 0;
                             for (int i = 0; i < 300; i++)
                             {
-                                result = _srModule.load(procId);
+                                result = _srModule.load(0);  // 参数 0 表示获取任何完成的任务
                                 pollCount++;
                                 
-                                // 检查是否完成 (load() 返回非 None 即完成)
+                                // 检查是否完成
                                 if (result != null)
                                 {
-                                    SuperResolutionLogger.Info($"处理完成! 轮询次数: {pollCount}, 耗时: {pollCount * 100}ms");
-                                    
-                                    // result 是一个 tuple (data:bytes, format:str, backId:int, tick:float)
-                                    // 提取第一个元素 data
+                                    // result 是元组: (data, format, returnedTaskId, tick)
                                     try
                                     {
                                         var resultTuple = result as PyObject;
-                                        if (resultTuple != null && resultTuple.Length() >= 1)
+                                        if (resultTuple != null && resultTuple.Length() >= 4)
                                         {
                                             var dataBytes = resultTuple[0];
-                                            processedData = dataBytes.As<byte[]>();
-                                            SuperResolutionLogger.Info($"成功提取处理结果, 大小: {processedData.Length} bytes");
+                                            var formatStr = resultTuple[1];
+                                            int returnedTaskId = resultTuple[2].As<int>();
+                                            float tickFloat = resultTuple[3].As<float>();
+                                            
+                                            SuperResolutionLogger.Info($"获取到完成任务: taskId={returnedTaskId}, tick={tickFloat:F2}s");
+                                            
+                                            // 验证 taskId 匹配
+                                            if (returnedTaskId == taskId)
+                                            {
+                                                processedData = dataBytes.As<byte[]>();
+                                                SuperResolutionLogger.Info($"处理完成! 轮询次数: {pollCount}, 输出大小: {processedData.Length} bytes");
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                SuperResolutionLogger.Warning($"taskId 不匹配 (期望:{taskId}, 实际:{returnedTaskId}), 继续等待...");
+                                            }
                                         }
                                         else
                                         {
-                                            SuperResolutionLogger.Error("load() 返回的 tuple 格式不正确");
+                                            SuperResolutionLogger.Error($"load() 返回的 tuple 格式不正确 (长度:{resultTuple?.Length() ?? 0})");
                                         }
                                     }
                                     catch (Exception ex)
                                     {
                                         SuperResolutionLogger.Error($"提取处理结果失败: {ex.Message}", ex);
                                     }
-                                    break;
                                 }
 
                                 if (i % 10 == 0 && i > 0)
@@ -571,20 +649,20 @@ namespace NeeView.SuperResolution
         {
             return model switch
             {
-                // Waifu2x 系列
-                SuperResolutionModel.Waifu2xAnime2x => "waifu2x_cunet",
-                SuperResolutionModel.Waifu2xAnime4x => "waifu2x_cunet",
-                SuperResolutionModel.Waifu2xPhoto2x => "waifu2x_upconv_7_photo",
-                SuperResolutionModel.Waifu2xPhoto4x => "waifu2x_upconv_7_photo",
+                // Waifu2x 系列 - 使用 sr_vulkan 的 MODEL_* 常量名称
+                SuperResolutionModel.Waifu2xAnime2x => "MODEL_WAIFU2X_ANIME_UP2X",
+                SuperResolutionModel.Waifu2xAnime4x => "MODEL_WAIFU2X_ANIME_UP2X",  // 使用 scale 参数控制倍数
+                SuperResolutionModel.Waifu2xPhoto2x => "MODEL_WAIFU2X_PHOTO_UP2X",
+                SuperResolutionModel.Waifu2xPhoto4x => "MODEL_WAIFU2X_PHOTO_UP2X",  // 使用 scale 参数控制倍数
                 
                 // RealESRGAN 系列
-                SuperResolutionModel.RealESRGANAnime4x => "realesrgan_animevideo",
-                SuperResolutionModel.RealESRGANGeneral4x => "realesrgan_plus",
+                SuperResolutionModel.RealESRGANAnime4x => "MODEL_REALESRGAN_X4PLUS_ANIME",
+                SuperResolutionModel.RealESRGANGeneral4x => "MODEL_REALESRGAN_X4PLUS",
                 
                 // RealCUGAN 系列
-                SuperResolutionModel.RealCUGANAnime2x => "realcugan_conservative",
-                SuperResolutionModel.RealCUGANAnime3x => "realcugan_denoise3x",
-                SuperResolutionModel.RealCUGANAnime4x => "realcugan_conservative",
+                SuperResolutionModel.RealCUGANAnime2x => "MODEL_REALCUGAN_SE_UP2X_CONSERVATIVE",
+                SuperResolutionModel.RealCUGANAnime3x => "MODEL_REALCUGAN_SE_UP3X_DENOISE3X",
+                SuperResolutionModel.RealCUGANAnime4x => "MODEL_REALCUGAN_SE_UP4X_CONSERVATIVE",
                 
                 _ => throw new ArgumentException($"不支持的模型: {model}")
             };

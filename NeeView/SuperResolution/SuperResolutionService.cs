@@ -97,6 +97,17 @@ namespace NeeView.SuperResolution
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
+                    // 加载模型 (如果需要)
+                    var modelLoadResult = await _engine.LoadModelAsync(config.Model, "");
+                    if (!modelLoadResult)
+                    {
+                        return new SuperResolutionResult
+                        {
+                            Success = false,
+                            ErrorMessage = $"模型加载失败: {_engine.GetLastError()}"
+                        };
+                    }
+
                     // 使用引擎处理图片
                     byte[] outputData;
                     
@@ -123,7 +134,11 @@ namespace NeeView.SuperResolution
                     }
 
                     result.OutputData = outputData;
-                    result.Success = true;
+                    result.Success = outputData != null && outputData.Length > 0;
+                    if (!result.Success)
+                    {
+                        result.ErrorMessage = _engine.GetLastError();
+                    }
                 }
                 finally
                 {
