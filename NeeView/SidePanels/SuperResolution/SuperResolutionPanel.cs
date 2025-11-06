@@ -18,8 +18,23 @@ namespace NeeView.SuperResolution
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _view = new Lazy<FrameworkElement>(() => new SuperResolutionView(_config));
 
-            Icon = App.Current.MainWindow?.Resources["pic_ai_24px"] as ImageSource
-                ?? throw new InvalidOperationException("Cannot found resource");
+            // 使用星形图标作为超分辨率面板图标
+            var geometry = App.Current.MainWindow?.Resources["g_star_24px"] as PathGeometry;
+            if (geometry != null)
+            {
+                Icon = new DrawingImage(new GeometryDrawing(
+                    Brushes.Transparent,
+                    new Pen(new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80)), 1),
+                    geometry));
+            }
+            else
+            {
+                // 如果找不到资源,使用默认图标
+                Icon = new DrawingImage(new GeometryDrawing(
+                    Brushes.LightGray,
+                    new Pen(Brushes.Gray, 1),
+                    Geometry.Parse("M12,2L9,8.5L2,9.5L7,14L6,21L12,17.5L18,21L17,14L22,9.5L15,8.5L12,2Z")));
+            }
         }
 
 #pragma warning disable CS0067
