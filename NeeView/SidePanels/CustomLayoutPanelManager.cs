@@ -82,7 +82,7 @@ namespace NeeView
                 nameof(ImageEffectPanel),
                 nameof(BookmarkPanel),
                 nameof(PlaylistPanel),
-                nameof(SuperResolutionPanel),
+                "SuperResolutionPanel",
             };
 
             var panelLeftKeys = new[] { nameof(FolderPanel), nameof(PageListPanel), nameof(HistoryPanel) };
