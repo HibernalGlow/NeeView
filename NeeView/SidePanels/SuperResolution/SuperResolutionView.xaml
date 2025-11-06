@@ -11,6 +11,9 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         
+        <!-- Count 转 Visibility 转换器 -->
+        <local:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
+        
         <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="0,5"/>
         </Style>
@@ -110,21 +113,53 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" 
                                 Text="{Binding Config.ModelPath, UpdateSourceTrigger=PropertyChanged}"
                                 IsReadOnly="True"
                                 ToolTip="sr_vulkan 模型文件存放路径,空表示使用默认路径"/>
                         <Button Grid.Column="1" 
-                               Content="..." 
+                               Content="浏览..." 
                                Margin="5,0,0,0" 
-                               Padding="10,0"
+                               Padding="8,3"
                                Click="BrowseModelPath_Click"/>
+                        <Button Grid.Column="2" 
+                               Content="扫描" 
+                               Margin="5,0,0,0" 
+                               Padding="8,3"
+                               Command="{Binding ScanModelsCommand}"
+                               ToolTip="扫描文件夹中的模型文件"/>
                     </Grid>
-                    <TextBlock Text="(空表示使用默认路径: ~/.cache/sr-vulkan/)" 
+                    <TextBlock Text="{Binding ModelScanStatus}" 
                               FontSize="10" 
                               Foreground="Gray"
                               Margin="0,2,0,0"/>
+                    
+                    <!-- 识别到的模型列表 -->
+                    <StackPanel Visibility="{Binding AvailableModels.Count, Converter={StaticResource CountToVisibilityConverter}}"
+                               Margin="0,10,0,0">
+                        <TextBlock Text="可用模型:" Margin="0,5,0,3" FontWeight="Bold"/>
+                        <ListBox ItemsSource="{Binding AvailableModels}"
+                                SelectedItem="{Binding SelectedModel}"
+                                MaxHeight="200"
+                                BorderThickness="1"
+                                BorderBrush="#CCCCCC">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="3">
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="Bold"/>
+                                        <TextBlock FontSize="10" Foreground="Gray">
+                                            <Run Text="文件: "/><Run Text="{Binding ModelName}"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="10" Foreground="Gray">
+                                            <Run Text="大小: "/><Run Text="{Binding BinFileSize, StringFormat={}{0:N0} bytes}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
                 </StackPanel>
             </GroupBox>
 

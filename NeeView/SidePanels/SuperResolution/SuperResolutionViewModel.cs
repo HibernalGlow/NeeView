@@ -1,5 +1,6 @@
 using NeeLaboratory.ComponentModel;
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -24,9 +25,22 @@ namespace NeeView.SuperResolution
             ProcessCurrentImageCommand = new RelayCommand(ProcessCurrentImage, CanProcessCurrentImage);
             OpenBatchProcessCommand = new RelayCommand(OpenBatchProcess);
             InitializeServiceCommand = new RelayCommand(async () => await InitializeServiceAsync());
+            ScanModelsCommand = new RelayCommand(async () => await ScanModelsAsync(), () => !string.IsNullOrEmpty(_config.ModelPath));
+
+            // 监听模型路径变化
+            _config.PropertyChanged += OnConfigPropertyChanged;
 
             // 初始化服务
             _ = InitializeServiceAsync();
+        }
+
+        private void OnConfigPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SuperResolutionConfig.ModelPath))
+            {
+                // 模型路径变化时自动扫描
+                _ = ScanModelsAsync();
+            }
         }
 
         #region Properties
@@ -122,6 +136,36 @@ namespace NeeView.SuperResolution
             set => SetProperty(ref _processingTime, value);
         }
 
+        /// <summary>
+        /// 可用的模型列表
+        /// </summary>
+        private ObservableCollection<DetectedModel> _availableModels = new ObservableCollection<DetectedModel>();
+        public ObservableCollection<DetectedModel> AvailableModels
+        {
+            get => _availableModels;
+            set => SetProperty(ref _availableModels, value);
+        }
+
+        /// <summary>
+        /// 选中的模型
+        /// </summary>
+        private DetectedModel? _selectedModel;
+        public DetectedModel? SelectedModel
+        {
+            get => _selectedModel;
+            set => SetProperty(ref _selectedModel, value);
+        }
+
+        /// <summary>
+        /// 模型扫描状态
+        /// </summary>
+        private string _modelScanStatus = "未扫描";
+        public string ModelScanStatus
+        {
+            get => _modelScanStatus;
+            set => SetProperty(ref _modelScanStatus, value);
+        }
+
         #endregion
 
         #region Commands
@@ -140,6 +184,11 @@ namespace NeeView.SuperResolution
         /// 初始化服务命令
         /// </summary>
         public ICommand InitializeServiceCommand { get; }
+
+        /// <summary>
+        /// 扫描模型命令
+        /// </summary>
+        public ICommand ScanModelsCommand { get; }
 
         #endregion
 
@@ -210,6 +259,59 @@ namespace NeeView.SuperResolution
         {
             // TODO: 打开批量处理窗口
             StatusMessage = "Batch processing window (to be implemented)";
+        }
+
+        /// <summary>
+        /// 扫描模型文件夹
+        /// </summary>
+        private async Task ScanModelsAsync()
+        {
+            if (string.IsNullOrEmpty(_config.ModelPath))
+            {
+                ModelScanStatus = "未设置模型路径";
+                AvailableModels.Clear();
+                return;
+            }
+
+            ModelScanStatus = "正在扫描...";
+            
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var models = ModelScanner.ScanModelDirectory(_config.ModelPath);
+                    
+                    App.Current.Dispatcher.Invoke(() =>
+                    {
+                        AvailableModels.Clear();
+                        foreach (var model in models)
+                        {
+                            AvailableModels.Add(model);
+                        }
+
+                        if (models.Count > 0)
+                        {
+                            ModelScanStatus = $"找到 {models.Count} 个模型";
+                            if (SelectedModel == null)
+                            {
+                                SelectedModel = models[0];
+                            }
+                        }
+                        else
+                        {
+                            ModelScanStatus = "未找到可用模型";
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    App.Current.Dispatcher.Invoke(() =>
+                    {
+                        ModelScanStatus = $"扫描失败: {ex.Message}";
+                        AvailableModels.Clear();
+                    });
+                }
+            });
         }
 
         #endregion

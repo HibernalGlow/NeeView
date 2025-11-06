@@ -21,7 +21,27 @@ namespace NeeView.SuperResolution
             $"SuperResolution_{DateTime.Now:yyyyMMdd}.log"
         );
 
+        private static readonly string DevLogFilePath = Path.Combine(
+            LogDirectory,
+            $"SuperResolution_DEV_{DateTime.Now:yyyyMMdd}.log"
+        );
+
         private static readonly object LogLock = new object();
+        
+        /// <summary>
+        /// 是否为开发模式(Debug 编译)
+        /// </summary>
+        public static bool IsDevMode
+        {
+            get
+            {
+#if DEBUG
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
 
         static SuperResolutionLogger()
         {
@@ -78,12 +98,25 @@ namespace NeeView.SuperResolution
             // 输出到调试窗口
             Debug.WriteLine(logMessage);
 
-            // 写入文件
+            // 写入文件 - Dev 模式写入单独的日志文件
             try
             {
                 lock (LogLock)
                 {
-                    File.AppendAllText(LogFilePath, logMessage, Encoding.UTF8);
+                    var targetLogFile = IsDevMode ? DevLogFilePath : LogFilePath;
+                    File.AppendAllText(targetLogFile, logMessage, Encoding.UTF8);
+                    
+                    // Dev 模式额外详细信息
+                    if (IsDevMode && level == LogLevel.Debug)
+                    {
+                        var stackTrace = new StackTrace(true);
+                        var frame = stackTrace.GetFrame(2); // 跳过 Log 和调用方法
+                        if (frame != null)
+                        {
+                            var detailMsg = $"  [DEV] 调用位置: {frame.GetFileName()}:{frame.GetFileLineNumber()}\n";
+                            File.AppendAllText(targetLogFile, detailMsg, Encoding.UTF8);
+                        }
+                    }
                 }
             }
             catch (Exception ex)

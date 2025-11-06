@@ -225,6 +225,30 @@ namespace NeeView.SuperResolution
         {
             SuperResolutionLogger.Info($"=== 开始处理图片 ===");
             SuperResolutionLogger.Info($"输入大小: {inputData.Length / 1024.0:F2} KB");
+            
+            // 检测并转换格式
+            var originalFormat = ImageFormatConverter.DetectFormat(inputData);
+            SuperResolutionLogger.Info($"输入格式: {originalFormat}");
+            
+            byte[] processData = inputData;
+            bool needsConversion = !ImageFormatConverter.IsNativelySupportedFormat(inputData);
+            
+            if (needsConversion)
+            {
+                try
+                {
+                    SuperResolutionLogger.Warning($"格式 {originalFormat} 需要转换为 PNG");
+                    processData = ImageFormatConverter.ConvertToPng(inputData);
+                    SuperResolutionLogger.Info($"格式转换完成: {inputData.Length / 1024.0:F2} KB → {processData.Length / 1024.0:F2} KB");
+                }
+                catch (Exception ex)
+                {
+                    _lastError = $"格式转换失败: {ex.Message}";
+                    SuperResolutionLogger.Error(_lastError, ex);
+                    return Array.Empty<byte>();
+                }
+            }
+            
             SuperResolutionLogger.Info($"模型: {_loadedModel}, 缩放: {scale}x, 降噪: {denoise}, TTA: {tta}");
 
             if (!_isInitialized || _srModule == null)
@@ -259,8 +283,8 @@ namespace NeeView.SuperResolution
 
                             // 转换字节数组为 Python bytes
                             dynamic builtins = Py.Import("builtins");
-                            dynamic inputPyBytes = builtins.bytes(inputData);
-                            SuperResolutionLogger.Info($"已转换输入数据为 Python bytes");
+                            dynamic inputPyBytes = builtins.bytes(processData);
+                            SuperResolutionLogger.Info($"已转换输入数据为 Python bytes (处理后大小: {processData.Length} bytes)");
 
                             // 调用 sr_vulkan.add()
                             // API: add(data:bytes, modelIndex:MODEL, backId:int, scale:float, format:str="", tileSize:int=400)
