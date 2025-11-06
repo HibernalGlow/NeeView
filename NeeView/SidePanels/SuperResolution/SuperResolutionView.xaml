@@ -9,10 +9,12 @@
              d:DesignHeight="600" d:DesignWidth="350">
     
     <UserControl.Resources>
-        <Style TargetType="GroupBox" BasedOn="{StaticResource NVGroupBox}">
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        
+        <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="0,5"/>
         </Style>
-        <Style TargetType="TextBlock" BasedOn="{StaticResource NVTextBlock}">
+        <Style TargetType="TextBlock">
             <Setter Property="Margin" Value="0,2"/>
         </Style>
     </UserControl.Resources>
