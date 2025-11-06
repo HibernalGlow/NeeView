@@ -88,7 +88,33 @@ namespace NeeView.SuperResolution
                                 _srModule = Py.Import("sr_vulkan.sr_vulkan");
                                 SuperResolutionLogger.Info("sr_vulkan 模块导入成功");
                                 
-                                // 1. 基础初始化 (必须!)
+                                // ===== 步骤 0: 设置模型路径 (必须在 init 之前!) =====
+                                // 注意: sr_vulkan 会自动从 Python 包中查找模型
+                                // 根据测试,不调用 setModelPath() 时能自动找到模型
+                                // 只有当用户手动指定路径时才需要设置
+                                var config = SuperResolutionConfig.Current;
+                                
+                                if (!string.IsNullOrEmpty(config.ModelPath) && Directory.Exists(config.ModelPath))
+                                {
+                                    try
+                                    {
+                                        SuperResolutionLogger.Info($"使用用户指定的模型路径: {config.ModelPath}");
+                                        dynamic builtins = Py.Import("builtins");
+                                        dynamic pathStr = builtins.str(config.ModelPath);
+                                        _srModule.setModelPath(pathStr);
+                                        SuperResolutionLogger.Info("模型路径设置成功");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        SuperResolutionLogger.Warning($"设置模型路径失败: {ex.Message}");
+                                    }
+                                }
+                                else
+                                {
+                                    SuperResolutionLogger.Info("未指定模型路径,使用 sr_vulkan 默认路径(自动从 Python 包中查找)");
+                                }
+                                
+                                // ===== 步骤 1: 基础初始化 =====
                                 SuperResolutionLogger.Info("调用 sr.init()...");
                                 int initResult = (int)_srModule.init();
                                 SuperResolutionLogger.Info($"sr.init() 返回: {initResult}");
@@ -109,7 +135,7 @@ namespace NeeView.SuperResolution
                                     SuperResolutionLogger.Warning("setDebug 方法不可用");
                                 }
                                 
-                                // 2. 设置 GPU 和线程数 (必须调用!否则模型无法使用)
+                                // ===== 步骤 2: 设置 GPU 和线程数 (关键!会加载模型) =====
                                 // 参考 picacg-qt: sr.initSet(config.Encode, config.UseCpuNum)
                                 SuperResolutionLogger.Info($"调用 sr.initSet({gpuId}, 0)...");
                                 int initSetResult = (int)_srModule.initSet(gpuId, 0);  // 0 = 自动线程数
@@ -142,65 +168,6 @@ namespace NeeView.SuperResolution
                                 catch (Exception ex)
                                 {
                                     SuperResolutionLogger.Warning($"无法获取 GPU 信息: {ex.Message}");
-                                }
-                                
-                                // 如果配置了模型路径,设置模型路径
-                                var config = SuperResolutionConfig.Current;
-                                string? modelPath = null;
-                                
-                                if (!string.IsNullOrEmpty(config.ModelPath) && Directory.Exists(config.ModelPath))
-                                {
-                                    modelPath = config.ModelPath;
-                                    SuperResolutionLogger.Info($"使用用户指定的模型路径: {modelPath}");
-                                }
-                                else
-                                {
-                                    // 尝试使用 Python 包内的模型路径
-                                    try
-                                    {
-                                        dynamic sys = Py.Import("sys");
-                                        dynamic pathList = sys.path;
-                                        
-                                        // 查找 sr_vulkan_model_waifu2x 包路径
-                                        foreach (dynamic path in pathList)
-                                        {
-                                            string pathStr = path.ToString();
-                                            string modelsDir = Path.Combine(pathStr, "sr_vulkan_model_waifu2x", "models");
-                                            if (Directory.Exists(modelsDir))
-                                            {
-                                                modelPath = modelsDir;
-                                                SuperResolutionLogger.Info($"自动检测到模型路径: {modelPath}");
-                                                break;
-                                            }
-                                        }
-                                        
-                                        if (string.IsNullOrEmpty(modelPath))
-                                        {
-                                            SuperResolutionLogger.Warning("未找到 sr_vulkan_model_waifu2x 模型路径,使用默认路径 ~/.cache/sr-vulkan/");
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        SuperResolutionLogger.Warning($"检测模型路径失败: {ex.Message}");
-                                    }
-                                }
-                                
-                                // 设置模型路径
-                                if (!string.IsNullOrEmpty(modelPath))
-                                {
-                                    try
-                                    {
-                                        SuperResolutionLogger.Info($"设置模型路径: {modelPath}");
-                                        dynamic builtins = Py.Import("builtins");
-                                        dynamic pathStr = builtins.str(modelPath);
-                                        _srModule.setModelPath(pathStr);
-                                        SuperResolutionLogger.Info("模型路径设置成功");
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        // setModelPath 可能不存在,忽略错误
-                                        SuperResolutionLogger.Warning($"设置模型路径失败: {ex.Message}");
-                                    }
                                 }
                                 
                                 _isInitialized = true;
