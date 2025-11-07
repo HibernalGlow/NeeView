@@ -30,7 +30,7 @@ namespace NeeView
         private readonly DisposableCollection _disposables = new();
         private readonly DispatcherTimer _timer;
         private FloatingControlMode _mode = FloatingControlMode.Auto;
-        private bool _isCollapsed = false;
+        private bool _isCollapsed = true; // 默认隐藏
         private bool _isSettingsVisible = false;
         private double _mediaPosition;
         private string _currentTime = "00:00";

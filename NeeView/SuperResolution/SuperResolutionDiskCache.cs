@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,19 +20,42 @@ namespace NeeView.SuperResolution
         public static SuperResolutionDiskCache Current => _instance.Value;
 
         private readonly string _cacheDirectory;
+        private readonly string _indexFilePath;
         private readonly ConcurrentDictionary<string, DiskCacheInfo> _diskIndex = new();
         private readonly SemaphoreSlim _cleanupSemaphore = new(1, 1);
+        private readonly SemaphoreSlim _indexSemaphore = new(1, 1);
         private readonly Timer _cleanupTimer;
         
         private const long MaxDiskCacheSizeMB = 5120; // 5GB
         private const int MaxCacheFiles = 10000;
         private static readonly TimeSpan DefaultCacheMaxAge = TimeSpan.FromDays(30); // 30天过期
 
+        /// <summary>
+        /// 磁盘缓存索引项（用于序列化）
+        /// </summary>
+        private class DiskCacheIndexItem
+        {
+            public string CacheKey { get; set; } = "";
+            public string FilePath { get; set; } = "";
+            public long FileSize { get; set; }
+            public DateTime CreatedTime { get; set; }
+            public DateTime LastAccessTime { get; set; }
+            public int OriginalWidth { get; set; }
+            public int OriginalHeight { get; set; }
+            public int SuperResolutionWidth { get; set; }
+            public int SuperResolutionHeight { get; set; }
+            public double ProcessingTime { get; set; }
+            public string AlgorithmType { get; set; } = "";
+            public int ScaleFactor { get; set; }
+            public int NoiseLevel { get; set; }
+        }
+
         private SuperResolutionDiskCache()
         {
             // 缓存目录：%LocalAppData%\NeeView\SuperResolution\Cache
             var localAppData = System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData);
             _cacheDirectory = Path.Combine(localAppData, "NeeView", "SuperResolution", "Cache");
+            _indexFilePath = Path.Combine(_cacheDirectory, "index.json");
             
             Directory.CreateDirectory(_cacheDirectory);
             
@@ -94,21 +118,98 @@ namespace NeeView.SuperResolution
             {
                 try
                 {
-                    var indexFile = Path.Combine(_cacheDirectory, "index.json");
-                    if (File.Exists(indexFile))
+                    if (File.Exists(_indexFilePath))
                     {
-                        // TODO: 实现索引文件加载
-                        SuperResolutionLogger.Info($"磁盘缓存索引加载完成");
+                        // 从索引文件加载
+                        var json = File.ReadAllText(_indexFilePath);
+                        var indexItems = JsonSerializer.Deserialize<List<DiskCacheIndexItem>>(json);
+                        
+                        if (indexItems != null)
+                        {
+                            foreach (var item in indexItems)
+                            {
+                                // 验证文件是否存在
+                                if (File.Exists(item.FilePath))
+                                {
+                                    var fileInfo = new FileInfo(item.FilePath);
+                                    _diskIndex.TryAdd(item.CacheKey, new DiskCacheInfo
+                                    {
+                                        FilePath = item.FilePath,
+                                        FileSize = item.FileSize,
+                                        CreatedTime = item.CreatedTime,
+                                        LastAccessTime = item.LastAccessTime,
+                                        OriginalWidth = item.OriginalWidth,
+                                        OriginalHeight = item.OriginalHeight,
+                                        SuperResolutionWidth = item.SuperResolutionWidth,
+                                        SuperResolutionHeight = item.SuperResolutionHeight,
+                                        ProcessingTime = item.ProcessingTime,
+                                        AlgorithmType = item.AlgorithmType,
+                                        ScaleFactor = item.ScaleFactor,
+                                        NoiseLevel = item.NoiseLevel
+                                    });
+                                }
+                            }
+                            
+                            SuperResolutionLogger.Info($"从索引文件加载了 {_diskIndex.Count} 个缓存项");
+                        }
                     }
-                    
-                    // 扫描缓存目录重建索引
-                    ScanCacheDirectory();
+                    else
+                    {
+                        // 索引文件不存在，扫描目录重建
+                        ScanCacheDirectory();
+                    }
                 }
                 catch (Exception ex)
                 {
                     SuperResolutionLogger.Error($"加载磁盘缓存索引失败: {ex.Message}", ex);
+                    // 出错时尝试扫描目录重建
+                    ScanCacheDirectory();
                 }
             });
+        }
+
+        /// <summary>
+        /// 异步保存磁盘索引
+        /// </summary>
+        private async Task SaveIndexAsync()
+        {
+            await _indexSemaphore.WaitAsync();
+            try
+            {
+                var indexItems = _diskIndex.Select(kvp => new DiskCacheIndexItem
+                {
+                    CacheKey = kvp.Key,
+                    FilePath = kvp.Value.FilePath,
+                    FileSize = kvp.Value.FileSize,
+                    CreatedTime = kvp.Value.CreatedTime,
+                    LastAccessTime = kvp.Value.LastAccessTime,
+                    OriginalWidth = kvp.Value.OriginalWidth,
+                    OriginalHeight = kvp.Value.OriginalHeight,
+                    SuperResolutionWidth = kvp.Value.SuperResolutionWidth,
+                    SuperResolutionHeight = kvp.Value.SuperResolutionHeight,
+                    ProcessingTime = kvp.Value.ProcessingTime,
+                    AlgorithmType = kvp.Value.AlgorithmType,
+                    ScaleFactor = kvp.Value.ScaleFactor,
+                    NoiseLevel = kvp.Value.NoiseLevel
+                }).ToList();
+
+                var json = JsonSerializer.Serialize(indexItems, new JsonSerializerOptions { WriteIndented = true });
+                
+                // 原子性写入：先写临时文件，再替换
+                var tempFile = _indexFilePath + ".tmp";
+                await File.WriteAllTextAsync(tempFile, json);
+                File.Move(tempFile, _indexFilePath, true);
+                
+                SuperResolutionLogger.DebugLog($"磁盘缓存索引已保存 ({indexItems.Count} 项)");
+            }
+            catch (Exception ex)
+            {
+                SuperResolutionLogger.Error($"保存磁盘缓存索引失败: {ex.Message}", ex);
+            }
+            finally
+            {
+                _indexSemaphore.Release();
+            }
         }
 
         /// <summary>
@@ -193,6 +294,9 @@ namespace NeeView.SuperResolution
                 
                 SuperResolutionLogger.Info($"超分结果已保存到磁盘缓存: {cacheKey} ({superResolutionData.Length / 1024.0:F2} KB)");
                 
+                // 保存索引到文件
+                _ = SaveIndexAsync();
+                
                 // 检查是否需要清理
                 _ = Task.Run(CleanupIfNeededAsync);
             }
@@ -240,6 +344,10 @@ namespace NeeView.SuperResolution
                 cacheInfo.LastAccessTime = DateTime.Now;
                 
                 SuperResolutionLogger.Info($"从磁盘缓存加载: {cacheKey} ({data.Length / 1024.0:F2} KB)");
+                
+                // 异步保存索引（避免阻塞加载）
+                _ = SaveIndexAsync();
+                
                 return data;
             }
             catch (Exception ex)
@@ -352,6 +460,9 @@ namespace NeeView.SuperResolution
                 if (itemsToRemove.Count > 0)
                 {
                     SuperResolutionLogger.Info($"磁盘缓存清理完成，移除了 {itemsToRemove.Count} 项");
+                    
+                    // 保存更新后的索引
+                    _ = SaveIndexAsync();
                 }
             }
             catch (Exception ex)
@@ -390,6 +501,9 @@ namespace NeeView.SuperResolution
                 }
                 
                 SuperResolutionLogger.Info("磁盘缓存已清空");
+                
+                // 保存空的索引
+                _ = SaveIndexAsync();
             }
             catch (Exception ex)
             {
