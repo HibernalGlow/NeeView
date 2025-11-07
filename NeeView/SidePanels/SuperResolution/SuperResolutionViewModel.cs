@@ -799,50 +799,86 @@ namespace NeeView.SuperResolution
                 return;
             }
 
-            // 🔥 方案: 临时修改配置 + 清除缓存 + 重新加载
-            var originalAutoApply = _config.AutoApplyOnView;
-            _config.AutoApplyOnView = EnableCurrentImageSuperResolution;
-
+            // 🎯 最简单方案:利用 AutoApplyOnView + Unload/ReLoad 机制
+            // 关键优化:只在启用超分时才临时修改配置,避免反复切换
+            
             try
             {
                 var book = BookOperation.Current.Book;
-                if (book != null)
+                if (book == null || book.CurrentPage == null)
                 {
-                    var currentPage = book.CurrentPage;
-                    if (currentPage != null)
+                    SuperResolutionLogger.Warning("当前没有打开的页面");
+                    return;
+                }
+
+                if (EnableCurrentImageSuperResolution)
+                {
+                    // ✅ 启用超分:临时开启 AutoApplyOnView
+                    CurrentImageStatus = SuperResolutionImageStatus.Processing;
+                    StatusMessage = "正在超分当前图片...";
+                    ToastService.Current.Show(new Toast("🔄 正在处理超分...", null, ToastIcon.Information));
+
+                    var originalAutoApply = _config.AutoApplyOnView;
+                    _config.AutoApplyOnView = true; // 强制启用自动超分
+                    
+                    try
                     {
-                        SuperResolutionLogger.Info($"切换当前页超分: {CurrentImagePath}, 启用={EnableCurrentImageSuperResolution}");
-                        
-                        // 1. 卸载当前页内容(清除图片缓存)
-                        currentPage.Content.Unload();
-                        
-                        // 2. 等待卸载完成
-                        await Task.Delay(100);
-                        
-                        // 3. 触发重新加载(不改变浏览位置)
+                        // 卸载并重新加载
                         await App.Current.Dispatcher.InvokeAsync(() =>
                         {
-                            // 使用 BookControl 的重新加载方法
+                            book.CurrentPage.Content.Unload();
+                        });
+                        
+                        await Task.Delay(100);
+                        
+                        await App.Current.Dispatcher.InvokeAsync(() =>
+                        {
                             BookOperation.Current.BookControl.ReLoad();
                         });
-
-                        // 4. 显示 Toast 提示
-                        await Task.Delay(200); // 等待加载开始
-                        var statusText = EnableCurrentImageSuperResolution ? "✅ 已启用超分" : "🔄 已切换到原图";
-                        ToastService.Current.Show(new Toast(statusText, null, ToastIcon.Information));
+                        
+                        // 等待加载完成
+                        await Task.Delay(500);
+                        
+                        CurrentImageStatus = SuperResolutionImageStatus.Completed;
+                        StatusMessage = "超分已应用";
+                        ToastService.Current.Show(new Toast("✅ 超分完成", "图片已更新", ToastIcon.Information));
                     }
+                    finally
+                    {
+                        // 立即恢复配置,因为加载已经完成
+                        _config.AutoApplyOnView = originalAutoApply;
+                    }
+                }
+                else
+                {
+                    // 🔄 切换回原图:直接重新加载(不修改配置)
+                    CurrentImageStatus = SuperResolutionImageStatus.None;
+                    StatusMessage = "切换到原图";
+                    
+                    await App.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        book.CurrentPage.Content.Unload();
+                    });
+                    
+                    await Task.Delay(100);
+                    
+                    await App.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        BookOperation.Current.BookControl.ReLoad();
+                    });
+                    
+                    await Task.Delay(200);
+                    
+                    ToastService.Current.Show(new Toast("🔄 已切换到原图", null, ToastIcon.Information));
                 }
             }
             catch (Exception ex)
             {
                 SuperResolutionLogger.Error($"切换超分失败: {ex.Message}", ex);
-                ToastService.Current.Show(new Toast("❌ 切换超分失败", null, ToastIcon.Error));
-            }
-            finally
-            {
-                // 恢复原始配置
-                await Task.Delay(100);
-                _config.AutoApplyOnView = originalAutoApply;
+                CurrentImageStatus = SuperResolutionImageStatus.Failed;
+                StatusMessage = $"错误: {ex.Message}";
+                ToastService.Current.Show(new Toast("❌ 切换超分失败", ex.Message, ToastIcon.Error));
+                EnableCurrentImageSuperResolution = false;
             }
         }
 
