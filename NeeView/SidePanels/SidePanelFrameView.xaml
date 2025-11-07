@@ -94,9 +94,16 @@
                     </b:Interaction.Behaviors>
                     <Border Style="{StaticResource PanelIconBorderStyle}" BorderThickness="1,0,0,0" Opacity="{Binding VM.RightPanelOpacity}" />
                     <Grid Margin="1,32,0,0">
-                        <ItemsControl x:Name="RightIconList" Style="{StaticResource PanelIconItemsControlStyle}" Margin="{Binding PanelMargin}" ItemTemplate="{StaticResource RightPanelIconTemplate}"
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <ItemsControl x:Name="RightIconList" Grid.Row="0" Style="{StaticResource PanelIconItemsControlStyle}" Margin="{Binding PanelMargin}" ItemTemplate="{StaticResource RightPanelIconTemplate}"
                                 ItemsSource="{Binding VM.MainLayoutPanelManager.RightDock.LeaderPanels}">
                         </ItemsControl>
+                        <!-- Floating Control Panel Button -->
+                        <local:FloatingControlPanelSidebarButton Grid.Row="1" Margin="2,0,2,10"
+                                                                  DataContext="{Binding Source={x:Static local:FloatingControlPanelViewModel.Current}}"/>
                     </Grid>
                 </Grid>
             </Grid>

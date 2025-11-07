@@ -356,31 +356,5 @@ namespace NeeView
 
         #endregion SizeChanged
 
-        #region FloatingPanelToggle
-
-        private void FloatingPanelToggle_MouseEnter(object sender, MouseEventArgs e)
-        {
-            if (sender is Border border)
-            {
-                border.Opacity = 1.0;
-            }
-        }
-
-        private void FloatingPanelToggle_MouseLeave(object sender, MouseEventArgs e)
-        {
-            if (sender is Border border)
-            {
-                border.Opacity = 0.7;
-            }
-        }
-
-        private void FloatingPanelToggle_Click(object sender, MouseButtonEventArgs e)
-        {
-            var floatingPanel = this.FloatingControlPanel.DataContext as FloatingControlPanelViewModel;
-            floatingPanel?.ExpandCommand.Execute(null);
-        }
-
-        #endregion FloatingPanelToggle
-
     }
 }

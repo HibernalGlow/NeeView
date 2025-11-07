@@ -24,6 +24,9 @@ namespace NeeView
     /// </summary>
     public class FloatingControlPanelViewModel : BindableBase, IDisposable
     {
+        private static FloatingControlPanelViewModel? _current;
+        public static FloatingControlPanelViewModel? Current => _current;
+
         private readonly DisposableCollection _disposables = new();
         private readonly DispatcherTimer _timer;
         private FloatingControlMode _mode = FloatingControlMode.Auto;
@@ -41,6 +44,7 @@ namespace NeeView
 
         public FloatingControlPanelViewModel()
         {
+            _current = this;
             // 订阅书籍变化事件
             _disposables.Add(BookOperation.Current.SubscribeBookChanged((s, e) => UpdateMode()));
 
