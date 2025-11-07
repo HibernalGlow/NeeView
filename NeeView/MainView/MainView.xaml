@@ -77,5 +77,11 @@
             </Grid.ContextMenu>
         </Grid>
 
+        <!-- Floating Control Panel -->
+        <local:FloatingControlPanel x:Name="FloatingControlPanel"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Margin="10"/>
+
     </Grid>
 </UserControl>
