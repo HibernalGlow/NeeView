@@ -50,7 +50,7 @@ public class SuperResolutionIntegrationTests
             var service = SuperResolutionService.Current;
             
             // 初始化服务
-            var initResult = await service.InitializeAsync();
+            var initResult = await service.InitializeAsync(config.GpuId);
             if (!initResult)
             {
                 SuperResolutionLogger.Error($"服务初始化失败: {service.GetLastError()}");

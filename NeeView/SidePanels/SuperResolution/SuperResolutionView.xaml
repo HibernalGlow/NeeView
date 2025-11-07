@@ -34,56 +34,19 @@
                      FontSize="14"
                      Margin="0,5"/>
 
-            <!-- 算法类型 -->
-            <GroupBox Header="算法设置" Margin="0,10">
-                <StackPanel>
-                    <TextBlock Text="算法类型:" Margin="0,5,0,3"/>
-                    <ComboBox SelectedValue="{Binding Config.AlgorithmType}" Margin="0,0,0,10">
-                        <ComboBoxItem Content="Waifu2x" Tag="Waifu2x"/>
-                        <ComboBoxItem Content="RealESRGAN" Tag="RealESRGAN"/>
-                        <ComboBoxItem Content="Real-CUGAN" Tag="RealCUGAN"/>
-                    </ComboBox>
-                    
-                    <TextBlock Text="模型:" Margin="0,5,0,3"/>
-                    <ComboBox SelectedValue="{Binding Config.Model}">
-                        <ComboBoxItem Content="anime" Tag="anime"/>
-                        <ComboBoxItem Content="photo" Tag="photo"/>
-                        <ComboBoxItem Content="artwork" Tag="artwork"/>
-                    </ComboBox>
-                </StackPanel>
-            </GroupBox>
-
-            <!-- 缩放设置 -->
-            <GroupBox Header="缩放设置" Margin="0,10">
-                <StackPanel>
-                    <TextBlock Text="缩放倍数:" Margin="0,5,0,3"/>
-                    <ComboBox SelectedValue="{Binding Config.ScaleFactor}">
-                        <ComboBoxItem Content="2x" Tag="2"/>
-                        <ComboBoxItem Content="4x" Tag="4"/>
-                        <ComboBoxItem Content="8x" Tag="8"/>
-                    </ComboBox>
-                    
-                    <TextBlock Text="降噪等级:" Margin="0,10,0,3"/>
-                    <ComboBox SelectedValue="{Binding Config.NoiseLevel}">
-                        <ComboBoxItem Content="关闭" Tag="-1"/>
-                        <ComboBoxItem Content="等级 0" Tag="0"/>
-                        <ComboBoxItem Content="等级 1" Tag="1"/>
-                        <ComboBoxItem Content="等级 2" Tag="2"/>
-                        <ComboBoxItem Content="等级 3" Tag="3"/>
-                    </ComboBox>
-                </StackPanel>
-            </GroupBox>
-
             <!-- 处理选项 -->
-            <GroupBox Header="处理选项" Margin="0,10">
+            <GroupBox Header="处理设置" Margin="0,10">
                 <StackPanel>
-                    <CheckBox Content="使用 GPU 加速" 
-                             IsChecked="{Binding Config.UseGpu}"
-                             Margin="0,5"/>
-                    
-                    <CheckBox Content="启用缓存" 
-                             IsChecked="{Binding Config.EnableCache}"
-                             Margin="0,5"/>
+                    <TextBlock Text="运算设备:" Margin="0,5,0,3"/>
+                    <ComboBox ItemsSource="{Binding AvailableDevices}"
+                              SelectedItem="{Binding SelectedDevice}"
+                              DisplayMemberPath="DisplayName"
+                              Margin="0,0,0,10"/>
+
+                    <CheckBox Content="启用结果缓存"
+                             IsChecked="{Binding Config.CacheResults}"
+                             Margin="0,5"
+                             ToolTip="缓存超分结果以便重复使用"/>
                 </StackPanel>
             </GroupBox>
 
@@ -142,20 +105,29 @@
                         <TextBlock Text="可用模型:" Margin="0,5,0,3" FontWeight="Bold"/>
                         <ListBox ItemsSource="{Binding AvailableModels}"
                                 SelectedItem="{Binding SelectedModel}"
+                                SelectionMode="Single"
                                 MaxHeight="200"
                                 BorderThickness="1"
                                 BorderBrush="#CCCCCC">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Margin="3">
-                                        <TextBlock Text="{Binding DisplayName}" FontWeight="Bold"/>
-                                        <TextBlock FontSize="10" Foreground="Gray">
-                                            <Run Text="文件: "/><Run Text="{Binding ModelName}"/>
-                                        </TextBlock>
-                                        <TextBlock FontSize="10" Foreground="Gray">
-                                            <Run Text="大小: "/><Run Text="{Binding BinFileSize, StringFormat={}{0:N0} bytes}"/>
-                                        </TextBlock>
-                                    </StackPanel>
+                                    <CheckBox IsChecked="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected, Mode=TwoWay}"
+                                              Padding="6,4">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold"/>
+                                            <TextBlock FontSize="10" Foreground="Gray">
+                                                <Run Text="文件: "/><Run Text="{Binding ModelName}"/>
+                                            </TextBlock>
+                                            <TextBlock FontSize="10" Foreground="Gray">
+                                                <Run Text="大小: "/><Run Text="{Binding BinFileSize, StringFormat={}{0:N0} bytes}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </CheckBox>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>

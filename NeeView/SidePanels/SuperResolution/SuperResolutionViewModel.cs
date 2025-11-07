@@ -2,6 +2,7 @@ using NeeLaboratory.ComponentModel;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using NeeLaboratory.Windows.Input;
@@ -24,7 +25,7 @@ namespace NeeView.SuperResolution
             // 初始化命令
             ProcessCurrentImageCommand = new RelayCommand(ProcessCurrentImage, CanProcessCurrentImage);
             OpenBatchProcessCommand = new RelayCommand(OpenBatchProcess);
-            InitializeServiceCommand = new RelayCommand(async () => await InitializeServiceAsync());
+            InitializeServiceCommand = new RelayCommand(async () => await InitializeServiceAsync(null, true));
             ScanModelsCommand = new RelayCommand(async () => await ScanModelsAsync(), () => !string.IsNullOrEmpty(_config.ModelPath));
 
             // 监听模型路径变化
@@ -40,6 +41,10 @@ namespace NeeView.SuperResolution
             {
                 // 模型路径变化时自动扫描
                 _ = ScanModelsAsync();
+            }
+            else if (e.PropertyName == nameof(SuperResolutionConfig.IsEnabled))
+            {
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
         }
 
@@ -85,6 +90,39 @@ namespace NeeView.SuperResolution
         {
             get => _progress;
             set => SetProperty(ref _progress, value);
+        }
+
+        /// <summary>
+        /// 可选的运算设备列表
+        /// </summary>
+        private readonly ObservableCollection<SuperResolutionDeviceInfo> _availableDevices = new ObservableCollection<SuperResolutionDeviceInfo>();
+        public ObservableCollection<SuperResolutionDeviceInfo> AvailableDevices => _availableDevices;
+
+        /// <summary>
+        /// 当前选中的运算设备
+        /// </summary>
+        private SuperResolutionDeviceInfo? _selectedDevice;
+        private bool _suppressDeviceSelectionChanges;
+        public SuperResolutionDeviceInfo? SelectedDevice
+        {
+            get => _selectedDevice;
+            set
+            {
+                if (SetProperty(ref _selectedDevice, value))
+                {
+                    if (_suppressDeviceSelectionChanges || value == null)
+                    {
+                        return;
+                    }
+
+                    if (_config.GpuId != value.Id || !_service.IsAvailable)
+                    {
+                        _config.GpuId = value.Id;
+                        SuperResolutionLogger.Info($"选择 GPU 设备: {value.DisplayName} (Id={value.Id})");
+                        _ = InitializeServiceAsync(value.Id, true);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -203,11 +241,16 @@ namespace NeeView.SuperResolution
         /// <summary>
         /// 初始化服务
         /// </summary>
-        private async Task InitializeServiceAsync()
+        private async Task InitializeServiceAsync(int? gpuOverride = null, bool force = false)
         {
-            SuperResolutionLogger.Info("开始初始化超分辨率服务...");
+            var targetGpuId = gpuOverride ?? _config.GpuId;
+            _config.GpuId = targetGpuId;
+
+            SuperResolutionLogger.Info($"开始初始化超分辨率服务... (GPU Id={targetGpuId}, Force={force})");
             StatusMessage = "Initializing super resolution service...";
-            IsServiceAvailable = await _service.InitializeAsync();
+            IsServiceAvailable = await _service.InitializeAsync(targetGpuId, force);
+
+            RefreshAvailableDevices(targetGpuId);
 
             if (IsServiceAvailable)
             {
@@ -227,7 +270,47 @@ namespace NeeView.SuperResolution
         /// </summary>
         private bool CanProcessCurrentImage()
         {
-            return IsServiceAvailable && !IsProcessing;
+            return _config.IsEnabled && IsServiceAvailable && !IsProcessing;
+        }
+
+        private void RefreshAvailableDevices(int targetGpuId)
+        {
+            var devices = _service.AvailableDevices;
+
+            _suppressDeviceSelectionChanges = true;
+            try
+            {
+                _availableDevices.Clear();
+
+                if (devices != null)
+                {
+                    foreach (var device in devices)
+                    {
+                        _availableDevices.Add(device);
+                    }
+                }
+
+                if (_availableDevices.Count == 0)
+                {
+                    SelectedDevice = null;
+                    return;
+                }
+
+                var selected = _availableDevices.FirstOrDefault(device => device.Id == targetGpuId)
+                               ?? _availableDevices.FirstOrDefault(device => device.Id >= 0)
+                               ?? _availableDevices.FirstOrDefault();
+
+                SelectedDevice = selected;
+
+                if (selected != null && _config.GpuId != selected.Id)
+                {
+                    _config.GpuId = selected.Id;
+                }
+            }
+            finally
+            {
+                _suppressDeviceSelectionChanges = false;
+            }
         }
 
         /// <summary>

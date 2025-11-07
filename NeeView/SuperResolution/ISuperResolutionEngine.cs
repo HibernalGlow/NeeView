@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,6 +30,11 @@ namespace NeeView.SuperResolution
         /// 支持的模型类型
         /// </summary>
         SuperResolutionModel[] SupportedModels { get; }
+
+    /// <summary>
+    /// 可选的运算设备列表。
+    /// </summary>
+    IReadOnlyList<SuperResolutionDeviceInfo> AvailableDevices { get; }
 
         /// <summary>
         /// 初始化引擎
@@ -89,6 +95,10 @@ namespace NeeView.SuperResolution
         private bool _isInitialized;
         private string _lastError = "";
         private SuperResolutionModel _currentModel;
+        private readonly IReadOnlyList<SuperResolutionDeviceInfo> _devices = new[]
+        {
+            new SuperResolutionDeviceInfo(-1, "CPU (模拟)")
+        };
 
         public string Name => "Mock Engine (Demo)";
         public string Version => "1.0.0";
@@ -100,6 +110,8 @@ namespace NeeView.SuperResolution
             SuperResolutionModel.Waifu2xAnime4x,
             SuperResolutionModel.RealESRGANAnime4x,
         };
+
+        public IReadOnlyList<SuperResolutionDeviceInfo> AvailableDevices => _devices;
 
         public async Task<bool> InitializeAsync(int gpuId = 0)
         {

@@ -19,36 +19,55 @@ namespace NeeView.SuperResolution
 
         private readonly ConcurrentDictionary<int, SuperResolutionTask> _tasks = new();
         private readonly SemaphoreSlim _processSemaphore;
-        private int _nextTaskId = 1;
-        private bool _isInitialized;
-        private string _lastError = "";
-        private bool _disposed;
-        private ISuperResolutionEngine? _engine;
+    private int _nextTaskId = 1;
+    private bool _isInitialized;
+    private string _lastError = "";
+    private bool _disposed;
+    private ISuperResolutionEngine? _engine;
+    private List<SuperResolutionDeviceInfo> _availableDevices = new();
 
         private SuperResolutionService()
         {
             _processSemaphore = new SemaphoreSlim(2, 2); // 默认最多2个并发任务
+            _availableDevices.Add(new SuperResolutionDeviceInfo(-1, "CPU"));
         }
 
-        /// <summary>
-        /// 是否可用
-        /// </summary>
-        public bool IsAvailable => _isInitialized;
+    /// <summary>
+    /// 是否可用
+    /// </summary>
+    public bool IsAvailable => _isInitialized;
+
+    /// <summary>
+    /// 可用的运算设备列表。
+    /// </summary>
+    public IReadOnlyList<SuperResolutionDeviceInfo> AvailableDevices => _availableDevices;
 
         /// <summary>
         /// 初始化服务
         /// </summary>
-        public async Task<bool> InitializeAsync()
+        public async Task<bool> InitializeAsync(int gpuId = 0, bool force = false)
         {
-            if (_isInitialized) return true;
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(SuperResolutionService));
+            }
+
+            if (_isInitialized && !force)
+            {
+                return true;
+            }
 
             try
             {
-                // 创建引擎实例
-                _engine = SuperResolutionEngineFactory.GetDefaultEngine();
-                
+                if (_engine == null || force)
+                {
+                    _engine?.Dispose();
+                    _engine = SuperResolutionEngineFactory.GetDefaultEngine();
+                }
+
                 // 初始化引擎
-                _isInitialized = await _engine.InitializeAsync();
+                _isInitialized = await _engine.InitializeAsync(gpuId);
+                UpdateAvailableDevices();
 
                 if (!_isInitialized)
                 {
@@ -60,6 +79,8 @@ namespace NeeView.SuperResolution
             catch (Exception ex)
             {
                 _lastError = ex.Message;
+                _availableDevices.Clear();
+                _isInitialized = false;
                 return false;
             }
         }
@@ -68,6 +89,23 @@ namespace NeeView.SuperResolution
         /// 获取最后的错误信息
         /// </summary>
         public string GetLastError() => _lastError;
+
+        private void UpdateAvailableDevices()
+        {
+            if (_engine == null)
+            {
+                _availableDevices = new List<SuperResolutionDeviceInfo>();
+                return;
+            }
+
+            var devices = _engine.AvailableDevices ?? Array.Empty<SuperResolutionDeviceInfo>();
+            _availableDevices = devices.ToList();
+
+            if (_availableDevices.Count == 0)
+            {
+                _availableDevices.Add(new SuperResolutionDeviceInfo(-1, "CPU"));
+            }
+        }
 
         /// <summary>
         /// 处理图片数据
@@ -338,6 +376,8 @@ namespace NeeView.SuperResolution
             CancelAllTasks();
             _engine?.Dispose();
             _processSemaphore?.Dispose();
+            _availableDevices.Clear();
+            _isInitialized = false;
             _disposed = true;
             GC.SuppressFinalize(this);
         }

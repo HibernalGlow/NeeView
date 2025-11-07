@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -26,6 +27,7 @@ namespace NeeView.SuperResolution
         private dynamic? _srModule;
         private SuperResolutionModel _loadedModel;
         private readonly object _pythonLock = new object();
+        private readonly List<SuperResolutionDeviceInfo> _devices = new();
 
         public string Name => "Python sr-vulkan";
         public string Version => "1.0.0";
@@ -46,6 +48,87 @@ namespace NeeView.SuperResolution
             SuperResolutionModel.RealCUGANAnime4x,
         };
 
+        public IReadOnlyList<SuperResolutionDeviceInfo> AvailableDevices => _devices;
+
+        private void ResetDeviceList()
+        {
+            _devices.Clear();
+            _devices.Add(new SuperResolutionDeviceInfo(-1, "CPU (sr_vulkan)", "回退模式"));
+        }
+
+        private void EnsureDefaultGpuEntry()
+        {
+            if (!_devices.Any(device => device.Id >= 0))
+            {
+                _devices.Add(new SuperResolutionDeviceInfo(0, "默认 GPU", "sr_vulkan"));
+            }
+        }
+
+        private void UpdateDeviceList(dynamic gpuInfoObject)
+        {
+            try
+            {
+                var infoText = gpuInfoObject?.ToString() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(infoText))
+                {
+                    EnsureDefaultGpuEntry();
+                    return;
+                }
+
+                var lines = infoText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                var hasGpuEntry = false;
+
+                foreach (var rawLine in lines)
+                {
+                    var line = rawLine.Trim();
+                    if (!line.StartsWith("[") || !line.Contains("]"))
+                    {
+                        continue;
+                    }
+
+                    var endBracket = line.IndexOf(']');
+                    if (endBracket <= 1)
+                    {
+                        continue;
+                    }
+
+                    var inside = line.Substring(1, endBracket - 1).Trim();
+                    var spaceIndex = inside.IndexOf(' ');
+                    if (spaceIndex <= 0)
+                    {
+                        continue;
+                    }
+
+                    var idPart = inside.Substring(0, spaceIndex).Trim();
+                    if (!int.TryParse(idPart, out int gpuId))
+                    {
+                        continue;
+                    }
+
+                    var name = inside.Substring(spaceIndex + 1).Trim();
+                    if (string.IsNullOrEmpty(name))
+                    {
+                        name = $"GPU {gpuId}";
+                    }
+
+                    var description = line.Substring(endBracket + 1).Trim();
+
+                    _devices.Add(new SuperResolutionDeviceInfo(gpuId, name, description));
+                    hasGpuEntry = true;
+                }
+
+                if (!hasGpuEntry)
+                {
+                    EnsureDefaultGpuEntry();
+                }
+            }
+            catch (Exception ex)
+            {
+                SuperResolutionLogger.Warning($"解析 GPU 信息失败: {ex.Message}");
+                EnsureDefaultGpuEntry();
+            }
+        }
+
         public async Task<bool> InitializeAsync(int gpuId = 0)
         {
             if (_isInitialized) return true;
@@ -56,6 +139,8 @@ namespace NeeView.SuperResolution
             {
                 lock (_pythonLock)
                 {
+                    ResetDeviceList();
+
                     try
                     {
                         // 初始化 Python 引擎
@@ -164,13 +249,20 @@ namespace NeeView.SuperResolution
                                 {
                                     dynamic gpuInfo = _srModule.getGpuInfo();
                                     SuperResolutionLogger.Info($"GPU 信息: {gpuInfo}");
+                                    UpdateDeviceList(gpuInfo);
                                 }
                                 catch (Exception ex)
                                 {
                                     SuperResolutionLogger.Warning($"无法获取 GPU 信息: {ex.Message}");
+                                    EnsureDefaultGpuEntry();
                                 }
                                 
                                 _isInitialized = true;
+                                if (_devices.Count > 0)
+                                {
+                                    var summary = string.Join(", ", _devices.Select(device => device.DisplayName));
+                                    SuperResolutionLogger.Info($"可用设备: {summary}");
+                                }
                                 SuperResolutionLogger.Info("=== Python 超分辨率引擎初始化完成 ===");
                                 return true;
                             }

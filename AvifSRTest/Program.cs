@@ -132,7 +132,7 @@ namespace AvifSRTest
             // 6. 初始化超分服务
             Console.WriteLine("⚙️  步骤 4: 初始化超分辨率服务...");
             var service = SuperResolutionService.Current;
-            bool initialized = await service.InitializeAsync();
+            bool initialized = await service.InitializeAsync(0);
 
             if (!initialized)
             {

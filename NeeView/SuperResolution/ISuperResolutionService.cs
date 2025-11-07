@@ -47,12 +47,17 @@ namespace NeeView.SuperResolution
         /// <summary>
         /// 初始化服务
         /// </summary>
-        Task<bool> InitializeAsync();
+    Task<bool> InitializeAsync(int gpuId = 0, bool force = false);
 
         /// <summary>
         /// 检查是否可用
         /// </summary>
         bool IsAvailable { get; }
+
+    /// <summary>
+    /// 当前可用的运算设备列表。
+    /// </summary>
+    System.Collections.Generic.IReadOnlyList<SuperResolutionDeviceInfo> AvailableDevices { get; }
 
         /// <summary>
         /// 获取错误信息

@@ -15,9 +15,9 @@ namespace NeeView.SuperResolution
         /// <summary>
         /// 是否启用超分辨率
         /// </summary>
-        private bool _isEnabled;
+        private bool _isEnabled = true;
         [DataMember]
-        [DefaultValue(false)]
+        [DefaultValue(true)]
         public bool IsEnabled
         {
             get => _isEnabled;
@@ -173,9 +173,9 @@ namespace NeeView.SuperResolution
         /// <summary>
         /// 是否自动应用于查看的图片
         /// </summary>
-        private bool _autoApplyOnView;
+        private bool _autoApplyOnView = true;
         [DataMember]
-        [DefaultValue(false)]
+        [DefaultValue(true)]
         public bool AutoApplyOnView
         {
             get => _autoApplyOnView;
