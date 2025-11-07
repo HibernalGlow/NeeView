@@ -170,6 +170,18 @@ namespace NeeView.SuperResolution
             set => SetProperty(ref _maxConcurrentProcessing, Math.Max(1, Math.Min(8, value)));
         }
 
+        /// <summary>
+        /// 预加载后续图片数量 (翻页时自动超分后续N张图片)
+        /// </summary>
+        private int _preloadCount = 3;
+        [DataMember]
+        [DefaultValue(3)]
+        public int PreloadCount
+        {
+            get => _preloadCount;
+            set => SetProperty(ref _preloadCount, Math.Max(0, Math.Min(10, value)));
+        }
+
         // 🎯 注意: AutoApplyOnView 已删除,默认启用条件筛选
         
         /// <summary>

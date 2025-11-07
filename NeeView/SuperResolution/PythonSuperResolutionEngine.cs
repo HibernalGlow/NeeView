@@ -508,10 +508,12 @@ namespace NeeView.SuperResolution
 
                                 if (i % 10 == 0 && i > 0)
                                 {
-                                    SuperResolutionLogger.DebugLog($"仍在处理中... 已轮询 {pollCount} 次 ({pollCount * 100}ms)");
+                                    SuperResolutionLogger.DebugLog($"仍在处理中... 已轮询 {pollCount} 次");
                                 }
 
-                                Thread.Sleep(100);
+                                // 动态调整轮询间隔: 前5次50ms快速检查,之后100ms
+                                int sleepTime = pollCount < 5 ? 50 : 100;
+                                Thread.Sleep(sleepTime);
                             }
 
                             if (result == null || processedData == null)

@@ -76,6 +76,33 @@
                              IsChecked="{Binding Config.CacheResults}"
                              Margin="0,5"
                              ToolTip="缓存超分结果以便重复使用"/>
+                    
+                    <!-- 预加载设置 -->
+                    <TextBlock Text="预加载后续图片数量:" Margin="0,10,0,3"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Slider Grid.Column="0" 
+                                Minimum="0" Maximum="10" 
+                                TickFrequency="1" 
+                                IsSnapToTickEnabled="True"
+                                Value="{Binding Config.PreloadCount}"
+                                VerticalAlignment="Center"
+                                Margin="0,0,10,0"
+                                ToolTip="翻页时自动超分后续N张图片,提升浏览流畅度"/>
+                        <TextBlock Grid.Column="1" 
+                                   Text="{Binding Config.PreloadCount}" 
+                                   Width="30"
+                                   TextAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   FontWeight="Bold"/>
+                    </Grid>
+                    <TextBlock Text="(0 = 禁用预加载, 3 = 推荐)" 
+                               FontSize="10" 
+                               Foreground="Gray" 
+                               Margin="0,3,0,0"/>
                 </StackPanel>
             </GroupBox>
 
