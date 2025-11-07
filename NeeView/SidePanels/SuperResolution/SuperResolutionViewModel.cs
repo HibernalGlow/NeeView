@@ -394,12 +394,27 @@ namespace NeeView.SuperResolution
         /// </summary>
         public SuperResolutionModel[] AvailableModelTypes => new[]
         {
+            // Waifu2x 动漫系列
             SuperResolutionModel.Waifu2xAnime2x,
+            SuperResolutionModel.Waifu2xAnime2xDenoise0,
+            SuperResolutionModel.Waifu2xAnime2xDenoise1,
+            SuperResolutionModel.Waifu2xAnime2xDenoise2,
+            SuperResolutionModel.Waifu2xAnime2xDenoise3,
             SuperResolutionModel.Waifu2xAnime4x,
+            
+            // Waifu2x 照片系列
             SuperResolutionModel.Waifu2xPhoto2x,
+            SuperResolutionModel.Waifu2xPhoto2xDenoise0,
+            SuperResolutionModel.Waifu2xPhoto2xDenoise1,
+            SuperResolutionModel.Waifu2xPhoto2xDenoise2,
+            SuperResolutionModel.Waifu2xPhoto2xDenoise3,
             SuperResolutionModel.Waifu2xPhoto4x,
+            
+            // RealESRGAN 系列
             SuperResolutionModel.RealESRGANAnime4x,
             SuperResolutionModel.RealESRGANGeneral4x,
+            
+            // RealCUGAN 系列
             SuperResolutionModel.RealCUGANAnime2x,
             SuperResolutionModel.RealCUGANAnime3x,
             SuperResolutionModel.RealCUGANAnime4x,

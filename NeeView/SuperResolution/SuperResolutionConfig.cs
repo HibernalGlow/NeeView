@@ -73,6 +73,18 @@ namespace NeeView.SuperResolution
         }
 
         /// <summary>
+        /// 自定义缩放倍数 (0 = 自动从模型识别, >0 = 手动指定)
+        /// </summary>
+        private int _customScaleFactor = 0;
+        [DataMember]
+        [DefaultValue(0)]
+        public int CustomScaleFactor
+        {
+            get => _customScaleFactor;
+            set => SetProperty(ref _customScaleFactor, Math.Max(0, Math.Min(8, value)));
+        }
+
+        /// <summary>
         /// 目标宽度 (当ScaleMode为TargetSize时使用)
         /// </summary>
         private int _targetWidth = 1920;

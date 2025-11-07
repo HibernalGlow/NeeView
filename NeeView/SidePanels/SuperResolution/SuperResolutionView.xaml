@@ -185,13 +185,34 @@
                     <TextBlock Text="超分模型:" Margin="0,5,0,3"/>
                     <ComboBox ItemsSource="{Binding AvailableModelTypes}"
                               SelectedItem="{Binding Config.Model}"
-                              Margin="0,0,0,5"
+                              Margin="0,0,0,10"
                               ToolTip="选择超分辨率模型 (模型文件通过 pip 自动管理)"/>
                     
-                    <TextBlock FontSize="10" Foreground="Gray" TextWrapping="Wrap" Margin="0,5,0,0">
+                    <!-- 自定义缩放倍数 -->
+                    <TextBlock Text="缩放倍数:" Margin="0,5,0,3"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" 
+                                 Text="{Binding Config.CustomScaleFactor, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,10,0"
+                                 ToolTip="自定义缩放倍数 (0 = 自动从模型识别, 1-8 = 手动指定)"/>
+                        <TextBlock Grid.Column="1" 
+                                   VerticalAlignment="Center"
+                                   FontSize="10" 
+                                   Foreground="Gray">
+                            <Run Text="(0 = 自动)"/>
+                        </TextBlock>
+                    </Grid>
+                    
+                    <TextBlock FontSize="10" Foreground="Gray" TextWrapping="Wrap" Margin="0,10,0,0">
                         <Run Text="💡 提示: 模型通过 Python pip 自动管理"/>
                         <LineBreak/>
                         <Run Text="   • Waifu2x: 适合动漫图片,速度快"/>
+                        <LineBreak/>
+                        <Run Text="   • 降噪0-3: 降噪强度逐渐增强"/>
                         <LineBreak/>
                         <Run Text="   • RealESRGAN: 适合照片/通用图片"/>
                         <LineBreak/>

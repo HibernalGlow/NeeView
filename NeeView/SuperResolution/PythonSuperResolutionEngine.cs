@@ -28,6 +28,7 @@ namespace NeeView.SuperResolution
         private SuperResolutionModel _loadedModel;
         private readonly object _pythonLock = new object();
         private readonly List<SuperResolutionDeviceInfo> _devices = new();
+        private readonly List<SuperResolutionModelInfo> _availableModels = new();
 
         public string Name => "Python sr-vulkan";
         public string Version => "1.0.0";
@@ -35,18 +36,13 @@ namespace NeeView.SuperResolution
         // 当前返回 false,提示用户需要先配置 Python
         public bool IsAvailable => CheckPythonAvailability();
 
-        public SuperResolutionModel[] SupportedModels => new[]
-        {
-            SuperResolutionModel.Waifu2xAnime2x,
-            SuperResolutionModel.Waifu2xAnime4x,
-            SuperResolutionModel.Waifu2xPhoto2x,
-            SuperResolutionModel.Waifu2xPhoto4x,
-            SuperResolutionModel.RealESRGANAnime4x,
-            SuperResolutionModel.RealESRGANGeneral4x,
-            SuperResolutionModel.RealCUGANAnime2x,
-            SuperResolutionModel.RealCUGANAnime3x,
-            SuperResolutionModel.RealCUGANAnime4x,
-        };
+        // 🔥 移除硬编码的模型列表,改为动态获取
+        public SuperResolutionModel[] SupportedModels => new SuperResolutionModel[0];
+        
+        /// <summary>
+        /// 动态获取的可用模型列表 (模型名, 模型ID)
+        /// </summary>
+        public IReadOnlyList<SuperResolutionModelInfo> AvailableModels => _availableModels;
 
         public IReadOnlyList<SuperResolutionDeviceInfo> AvailableDevices => _devices;
 
@@ -126,6 +122,61 @@ namespace NeeView.SuperResolution
             {
                 SuperResolutionLogger.Warning($"解析 GPU 信息失败: {ex.Message}");
                 EnsureDefaultGpuEntry();
+            }
+        }
+
+        /// <summary>
+        /// 动态读取sr-vulkan模块的所有MODEL_*常量
+        /// </summary>
+        private void DiscoverAvailableModels()
+        {
+            if (_srModule == null)
+            {
+                SuperResolutionLogger.Warning("sr_vulkan 模块未初始化,无法读取模型列表");
+                return;
+            }
+
+            _availableModels.Clear();
+
+            try
+            {
+                // 获取模块的所有属性名
+                dynamic dirResult = _srModule.InvokeMethod("__dir__");
+                var attributes = new List<string>();
+                
+                foreach (PyObject attr in dirResult)
+                {
+                    var attrName = attr.ToString();
+                    if (attrName != null && attrName.StartsWith("MODEL_", StringComparison.Ordinal))
+                    {
+                        attributes.Add(attrName);
+                    }
+                }
+
+                SuperResolutionLogger.Info($"找到 {attributes.Count} 个模型常量");
+
+                // 读取每个模型的ID值
+                foreach (var modelName in attributes.OrderBy(x => x))
+                {
+                    try
+                    {
+                        dynamic modelIdObj = _srModule.GetAttr(modelName);
+                        int modelId = (int)modelIdObj;
+                        
+                        var modelInfo = new SuperResolutionModelInfo(modelName, modelId);
+                        _availableModels.Add(modelInfo);
+                        
+                        SuperResolutionLogger.DebugLog($"  {modelName} = {modelId} (scale={modelInfo.Scale}x, denoise={modelInfo.DenoiseLevel})");
+                    }
+                    catch (Exception ex)
+                    {
+                        SuperResolutionLogger.Warning($"读取模型 {modelName} 失败: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SuperResolutionLogger.Error($"读取模型列表失败: {ex.Message}", ex);
             }
         }
 
@@ -243,6 +294,18 @@ namespace NeeView.SuperResolution
                                     EnsureDefaultGpuEntry();
                                 }
                                 
+                                // 🚀 动态读取所有可用模型
+                                try
+                                {
+                                    SuperResolutionLogger.Info("正在读取可用模型列表...");
+                                    DiscoverAvailableModels();
+                                    SuperResolutionLogger.Info($"发现 {_availableModels.Count} 个可用模型");
+                                }
+                                catch (Exception ex)
+                                {
+                                    SuperResolutionLogger.Warning($"读取模型列表失败: {ex.Message}");
+                                }
+                                
                                 _isInitialized = true;
                                 if (_devices.Count > 0)
                                 {
@@ -334,9 +397,21 @@ namespace NeeView.SuperResolution
             
             SuperResolutionLogger.Info($"模型: {_loadedModel}, 降噪: {denoise}, TTA: {tta}");
             
-            // 🔥 从模型名称提取真实的缩放倍数 (忽略用户的ScaleFactor设置)
-            int actualScale = GetScaleFromModel(_loadedModel);
-            SuperResolutionLogger.Info($"实际缩放倍数: {actualScale}x (从模型 {_loadedModel} 提取)");
+            // 🔥 智能缩放倍数选择:
+            // 1. 如果配置了CustomScaleFactor(>0),优先使用
+            // 2. 否则从模型名称自动提取 (如 UP2X→2, UP4X→4)
+            int actualScale;
+            var config = SuperResolutionConfig.Current;
+            if (config != null && config.CustomScaleFactor > 0)
+            {
+                actualScale = config.CustomScaleFactor;
+                SuperResolutionLogger.Info($"使用自定义缩放倍数: {actualScale}x");
+            }
+            else
+            {
+                actualScale = GetScaleFromModel(_loadedModel);
+                SuperResolutionLogger.Info($"使用模型默认缩放倍数: {actualScale}x (从 {_loadedModel} 提取)");
+            }
 
             if (!_isInitialized || _srModule == null)
             {
@@ -729,22 +804,38 @@ namespace NeeView.SuperResolution
         }
 
         /// <summary>
-        /// 从模型枚举中提取缩放倍数
+        /// 从模型枚举提取固定的缩放倍数
         /// </summary>
         private int GetScaleFromModel(SuperResolutionModel model)
         {
             return model switch
             {
+                // Waifu2x 2x系列
                 SuperResolutionModel.Waifu2xAnime2x => 2,
-                SuperResolutionModel.Waifu2xAnime4x => 4,
+                SuperResolutionModel.Waifu2xAnime2xDenoise0 => 2,
+                SuperResolutionModel.Waifu2xAnime2xDenoise1 => 2,
+                SuperResolutionModel.Waifu2xAnime2xDenoise2 => 2,
+                SuperResolutionModel.Waifu2xAnime2xDenoise3 => 2,
                 SuperResolutionModel.Waifu2xPhoto2x => 2,
+                SuperResolutionModel.Waifu2xPhoto2xDenoise0 => 2,
+                SuperResolutionModel.Waifu2xPhoto2xDenoise1 => 2,
+                SuperResolutionModel.Waifu2xPhoto2xDenoise2 => 2,
+                SuperResolutionModel.Waifu2xPhoto2xDenoise3 => 2,
+                
+                // Waifu2x 4x系列 (使用2x模型scale=4)
+                SuperResolutionModel.Waifu2xAnime4x => 4,
                 SuperResolutionModel.Waifu2xPhoto4x => 4,
+                
+                // RealESRGAN 系列 (固定4x)
                 SuperResolutionModel.RealESRGANAnime4x => 4,
                 SuperResolutionModel.RealESRGANGeneral4x => 4,
+                
+                // RealCUGAN 系列
                 SuperResolutionModel.RealCUGANAnime2x => 2,
                 SuperResolutionModel.RealCUGANAnime3x => 3,
                 SuperResolutionModel.RealCUGANAnime4x => 4,
-                _ => 2  // 默认2x
+                
+                _ => 2 // 默认2x
             };
         }
 
@@ -756,17 +847,31 @@ namespace NeeView.SuperResolution
         {
             return model switch
             {
-                // Waifu2x 系列 - 使用 sr_vulkan 的 MODEL_* 常量名称
+                // Waifu2x 动漫系列 - 2x
                 SuperResolutionModel.Waifu2xAnime2x => "MODEL_WAIFU2X_ANIME_UP2X",
-                SuperResolutionModel.Waifu2xAnime4x => "MODEL_WAIFU2X_ANIME_UP2X",  // 使用 scale 参数控制倍数
-                SuperResolutionModel.Waifu2xPhoto2x => "MODEL_WAIFU2X_PHOTO_UP2X",
-                SuperResolutionModel.Waifu2xPhoto4x => "MODEL_WAIFU2X_PHOTO_UP2X",  // 使用 scale 参数控制倍数
+                SuperResolutionModel.Waifu2xAnime2xDenoise0 => "MODEL_WAIFU2X_ANIME_UP2X_DENOISE0X",
+                SuperResolutionModel.Waifu2xAnime2xDenoise1 => "MODEL_WAIFU2X_ANIME_UP2X_DENOISE1X",
+                SuperResolutionModel.Waifu2xAnime2xDenoise2 => "MODEL_WAIFU2X_ANIME_UP2X_DENOISE2X",
+                SuperResolutionModel.Waifu2xAnime2xDenoise3 => "MODEL_WAIFU2X_ANIME_UP2X_DENOISE3X",
                 
-                // RealESRGAN 系列 - 修正:X4PLUSANIME (无下划线)
+                // Waifu2x 动漫 4x (使用2x模型+scale参数)
+                SuperResolutionModel.Waifu2xAnime4x => "MODEL_WAIFU2X_ANIME_UP2X",
+                
+                // Waifu2x 照片系列 - 2x
+                SuperResolutionModel.Waifu2xPhoto2x => "MODEL_WAIFU2X_PHOTO_UP2X",
+                SuperResolutionModel.Waifu2xPhoto2xDenoise0 => "MODEL_WAIFU2X_PHOTO_UP2X_DENOISE0X",
+                SuperResolutionModel.Waifu2xPhoto2xDenoise1 => "MODEL_WAIFU2X_PHOTO_UP2X_DENOISE1X",
+                SuperResolutionModel.Waifu2xPhoto2xDenoise2 => "MODEL_WAIFU2X_PHOTO_UP2X_DENOISE2X",
+                SuperResolutionModel.Waifu2xPhoto2xDenoise3 => "MODEL_WAIFU2X_PHOTO_UP2X_DENOISE3X",
+                
+                // Waifu2x 照片 4x (使用2x模型+scale参数)
+                SuperResolutionModel.Waifu2xPhoto4x => "MODEL_WAIFU2X_PHOTO_UP2X",
+                
+                // RealESRGAN 系列
                 SuperResolutionModel.RealESRGANAnime4x => "MODEL_REALESRGAN_X4PLUSANIME_UP4X",
                 SuperResolutionModel.RealESRGANGeneral4x => "MODEL_REALESRGAN_X4PLUS_UP4X",
                 
-                // RealCUGAN 系列 - 已验证
+                // RealCUGAN 系列
                 SuperResolutionModel.RealCUGANAnime2x => "MODEL_REALCUGAN_SE_UP2X_CONSERVATIVE",
                 SuperResolutionModel.RealCUGANAnime3x => "MODEL_REALCUGAN_SE_UP3X_DENOISE3X",
                 SuperResolutionModel.RealCUGANAnime4x => "MODEL_REALCUGAN_SE_UP4X_CONSERVATIVE",
