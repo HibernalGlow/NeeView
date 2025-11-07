@@ -1,0 +1,280 @@
+name: Build and Release NeeView
+
+on:
+  push:
+    branches:
+      - dev
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 44.2.0)'
+        required: false
+        default: '44.2.0'
+      create_release:
+        description: 'Create GitHub Release'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  SOLUTION_FILE: 'NeeView.sln'
+  PROJECT_FILE: 'NeeView/NeeView.csproj'
+  PROJECT_SUSIE: 'NeeView.Susie.Server/NeeView.Susie.Server.csproj'
+  CONFIGURATION: 'Release'
+  VERSION_PREFIX: ${{ github.event.inputs.version || '44.2.0' }}
+
+jobs:
+  build:
+    name: Build NeeView
+    runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        platform: [x64, x86]
+        variant: [self-contained, framework-dependent]
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_FILE }}
+        
+      - name: Calculate version
+        id: version
+        shell: pwsh
+        run: |
+          $versionPrefix = "${{ env.VERSION_PREFIX }}"
+          $revision = git rev-list --count HEAD
+          $shortSha = git rev-parse --short HEAD
+          $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
+          $versionSuffix = "dev.$timestamp"
+          
+          echo "VERSION_PREFIX=$versionPrefix" >> $env:GITHUB_OUTPUT
+          echo "REVISION=$revision" >> $env:GITHUB_OUTPUT
+          echo "SHORT_SHA=$shortSha" >> $env:GITHUB_OUTPUT
+          echo "VERSION_SUFFIX=$versionSuffix" >> $env:GITHUB_OUTPUT
+          echo "FULL_VERSION=$versionPrefix-$versionSuffix" >> $env:GITHUB_OUTPUT
+          
+          Write-Host "Building version: $versionPrefix-$versionSuffix (rev $revision, commit $shortSha)"
+          
+      - name: Set platform and variant variables
+        id: build-params
+        shell: pwsh
+        run: |
+          $platform = "${{ matrix.platform }}"
+          $variant = "${{ matrix.variant }}"
+          
+          $selfContained = if ($variant -eq "self-contained") { "true" } else { "false" }
+          $outputSuffix = if ($variant -eq "framework-dependent") { "-fd" } else { "" }
+          $outputDir = "Publish/NeeView-$platform$outputSuffix"
+          
+          echo "SELF_CONTAINED=$selfContained" >> $env:GITHUB_OUTPUT
+          echo "OUTPUT_DIR=$outputDir" >> $env:GITHUB_OUTPUT
+          echo "ARTIFACT_NAME=NeeView-$platform$outputSuffix" >> $env:GITHUB_OUTPUT
+          
+      - name: Build main project
+        shell: pwsh
+        run: |
+          $params = @(
+            "-c", "${{ env.CONFIGURATION }}",
+            "-p:Platform=${{ matrix.platform }}",
+            "-p:VersionPrefix=${{ steps.version.outputs.VERSION_PREFIX }}",
+            "-p:VersionSuffix=${{ steps.version.outputs.VERSION_SUFFIX }}",
+            "-p:PublishReadyToRun=true",
+            "-p:PublishTrimmed=false",
+            "-p:PublishSingleFile=false",
+            "--self-contained", "${{ steps.build-params.outputs.SELF_CONTAINED }}",
+            "-o", "${{ steps.build-params.outputs.OUTPUT_DIR }}"
+          )
+          
+          Write-Host "Publishing NeeView with parameters: $($params -join ' ')"
+          dotnet publish ${{ env.PROJECT_FILE }} @params
+          
+          if ($LASTEXITCODE -ne 0) {
+            throw "Build failed with exit code $LASTEXITCODE"
+          }
+          
+      - name: Build Susie plugin
+        shell: pwsh
+        run: |
+          $params = @(
+            "-c", "${{ env.CONFIGURATION }}",
+            "-p:Platform=${{ matrix.platform }}",
+            "-p:VersionPrefix=${{ steps.version.outputs.VERSION_PREFIX }}",
+            "-p:VersionSuffix=${{ steps.version.outputs.VERSION_SUFFIX }}",
+            "--self-contained", "false",
+            "-o", "${{ steps.build-params.outputs.OUTPUT_DIR }}/Libraries/Susie"
+          )
+          
+          Write-Host "Publishing Susie plugin with parameters: $($params -join ' ')"
+          dotnet publish ${{ env.PROJECT_SUSIE }} @params
+          
+          if ($LASTEXITCODE -ne 0) {
+            throw "Build failed with exit code $LASTEXITCODE"
+          }
+          
+      - name: Optimize with NetBeauty2
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          # Install NetBeauty2 if not available
+          if (-not (Get-Command nbeauty2 -ErrorAction SilentlyContinue)) {
+            dotnet tool install --global nulastudio.NetBeauty
+          }
+          
+          # Optimize package layout
+          nbeauty2 --usepatch --loglevel Detail "${{ steps.build-params.outputs.OUTPUT_DIR }}" Libraries
+          
+          # Remove backup file if exists
+          $bakFile = "${{ steps.build-params.outputs.OUTPUT_DIR }}/hostfxr.dll.bak"
+          if (Test-Path $bakFile) {
+            Remove-Item $bakFile
+          }
+          
+      - name: Clean artifacts
+        shell: pwsh
+        run: |
+          $outputDir = "${{ steps.build-params.outputs.OUTPUT_DIR }}"
+          
+          # Remove debug symbols and user settings
+          Get-ChildItem -Path $outputDir -Filter *.pdb -Recurse | Remove-Item -Force
+          $settingsFile = Join-Path $outputDir "NeeView.settings.json"
+          if (Test-Path $settingsFile) {
+            Remove-Item $settingsFile -Force
+          }
+          
+          Write-Host "Cleaned build artifacts in $outputDir"
+          
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          $outputDir = "${{ steps.build-params.outputs.OUTPUT_DIR }}"
+          $archiveName = "${{ steps.build-params.outputs.ARTIFACT_NAME }}-${{ steps.version.outputs.FULL_VERSION }}.zip"
+          
+          Write-Host "Creating archive: $archiveName from $outputDir"
+          Compress-Archive -Path "$outputDir\*" -DestinationPath $archiveName -CompressionLevel Optimal
+          
+          $fileSize = (Get-Item $archiveName).Length / 1MB
+          Write-Host "Archive created: $archiveName ($([math]::Round($fileSize, 2)) MB)"
+          
+          echo "ARCHIVE_NAME=$archiveName" >> $env:GITHUB_OUTPUT
+        id: archive
+        
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.build-params.outputs.ARTIFACT_NAME }}-${{ steps.version.outputs.VERSION_SUFFIX }}
+          path: ${{ steps.archive.outputs.ARCHIVE_NAME }}
+          retention-days: 30
+          
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: windows-latest
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') || startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Calculate version
+        id: version
+        shell: pwsh
+        run: |
+          $versionPrefix = "${{ env.VERSION_PREFIX }}"
+          $revision = git rev-list --count HEAD
+          $shortSha = git rev-parse --short HEAD
+          $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
+          $versionSuffix = "dev.$timestamp"
+          
+          echo "VERSION_PREFIX=$versionPrefix" >> $env:GITHUB_OUTPUT
+          echo "REVISION=$revision" >> $env:GITHUB_OUTPUT
+          echo "SHORT_SHA=$shortSha" >> $env:GITHUB_OUTPUT
+          echo "VERSION_SUFFIX=$versionSuffix" >> $env:GITHUB_OUTPUT
+          echo "FULL_VERSION=$versionPrefix-$versionSuffix" >> $env:GITHUB_OUTPUT
+          
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          
+      - name: Generate changelog
+        id: changelog
+        shell: pwsh
+        run: |
+          $branch = git rev-parse --abbrev-ref HEAD
+          $lastTag = git tag | Where-Object { $_ -match '^\d+\.\d+' } | Select-Object -Last 1
+          
+          if (-not $lastTag) {
+            $lastTag = git rev-list --max-parents=0 HEAD
+          }
+          
+          $date = git log -1 --pretty=format:"%ad" --date=iso
+          
+          $commits = git log "$lastTag..HEAD" --pretty=format:"%s" --no-merges | 
+            Where-Object { -not ($_ -match '^chore:|^docs:|^refactor:') } |
+            Select-Object -First 50
+          
+          $changeList = if ($commits) {
+            $commits | ForEach-Object { "- $_" }
+          } else {
+            "- No changes since last tag"
+          }
+          
+          $changelog = @"
+          ## NeeView ${{ steps.version.outputs.FULL_VERSION }}
+          
+          **Branch**: $branch  
+          **Revision**: ${{ steps.version.outputs.REVISION }}  
+          **Commit**: ${{ steps.version.outputs.SHORT_SHA }}  
+          **Built**: $date
+          
+          ### Changes from $lastTag
+          
+          $($changeList -join "`n")
+          
+          ---
+          
+          > **⚠️ Development Build**  
+          > This is an automated development build from the \`dev\` branch.  
+          > It may contain unstable features and is intended for testing purposes.
+          
+          ### Download
+          
+          - **NeeView-x64**: Self-contained x64 build (recommended)
+          - **NeeView-x64-fd**: Framework-dependent x64 build (requires .NET 9.0 runtime)
+          - **NeeView-x86**: Self-contained x86 build
+          - **NeeView-x86-fd**: Framework-dependent x86 build (requires .NET 9.0 runtime)
+          "@
+          
+          $changelog | Out-File -FilePath changelog.md -Encoding UTF8
+          
+          # Use multiline output for GitHub Actions
+          $changelogEscaped = $changelog -replace '%', '%25' -replace '\n', '%0A' -replace '\r', '%0D'
+          echo "CHANGELOG=$changelogEscaped" >> $env:GITHUB_OUTPUT
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.FULL_VERSION }}
+          name: NeeView ${{ steps.version.outputs.FULL_VERSION }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          draft: false
+          prerelease: true
+          files: |
+            artifacts/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
