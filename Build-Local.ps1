@@ -42,14 +42,9 @@ function Build-NeeView {
     $params = @(
         "publish",
         $ProjectFile,
-        "-c", $Configuration,
-        "-p:Platform=x64",
+        "-p:PublishProfile=FolderProfile-x64.pubxml",
         "-p:VersionPrefix=$Version",
         "-p:VersionSuffix=$VersionSuffix",
-        "-p:PublishReadyToRun=true",
-        "-p:PublishTrimmed=false",
-        "-p:PublishSingleFile=false",
-        "--self-contained", "true",
         "-o", $OutputDir
     )
     
@@ -64,10 +59,9 @@ function Build-NeeView {
         "publish",
         $SusieProject,
         "-c", $Configuration,
-        "-p:Platform=x64",
+        "-r", "win-x64",
         "-p:VersionPrefix=$Version",
         "-p:VersionSuffix=$VersionSuffix",
-        "--self-contained", "false",
         "-o", "$OutputDir\Libraries\Susie"
     )
     
@@ -79,10 +73,9 @@ function Build-NeeView {
     # 清理构建产物
     Write-Host "Cleaning artifacts..." -ForegroundColor Cyan
     Get-ChildItem -Path $OutputDir -Filter *.pdb -Recurse | Remove-Item -Force
-    $settingsFile = Join-Path $OutputDir "NeeView.settings.json"
-    if (Test-Path $settingsFile) {
-        Remove-Item $settingsFile -Force
-    }
+    
+    # 不删除 NeeView.settings.json,它是必需的配置文件
+    Write-Host "Build artifacts cleaned (kept NeeView.settings.json)" -ForegroundColor Cyan
     
     # 优化文件布局 (可选)
     if (Get-Command nbeauty2 -ErrorAction SilentlyContinue) {

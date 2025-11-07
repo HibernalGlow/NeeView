@@ -112,14 +112,9 @@ jobs:
         shell: pwsh
         run: |
           $params = @(
-            "-c", "${{ env.CONFIGURATION }}",
-            "-p:Platform=x64",
+            "-p:PublishProfile=FolderProfile-x64.pubxml",
             "-p:VersionPrefix=${{ steps.version.outputs.VERSION_PREFIX }}",
             "-p:VersionSuffix=${{ steps.version.outputs.VERSION_SUFFIX }}",
-            "-p:PublishReadyToRun=true",
-            "-p:PublishTrimmed=false",
-            "-p:PublishSingleFile=false",
-            "--self-contained", "true",
             "-o", "${{ steps.build-params.outputs.OUTPUT_DIR }}"
           )
           
@@ -135,10 +130,9 @@ jobs:
         run: |
           $params = @(
             "-c", "${{ env.CONFIGURATION }}",
-            "-p:Platform=x64",
+            "-r", "win-x64",
             "-p:VersionPrefix=${{ steps.version.outputs.VERSION_PREFIX }}",
             "-p:VersionSuffix=${{ steps.version.outputs.VERSION_SUFFIX }}",
-            "--self-contained", "false",
             "-o", "${{ steps.build-params.outputs.OUTPUT_DIR }}/Libraries/Susie"
           )
           
@@ -172,14 +166,10 @@ jobs:
         run: |
           $outputDir = "${{ steps.build-params.outputs.OUTPUT_DIR }}"
           
-          # Remove debug symbols and user settings
+          # Remove debug symbols only (keep NeeView.settings.json as it's required)
           Get-ChildItem -Path $outputDir -Filter *.pdb -Recurse | Remove-Item -Force
-          $settingsFile = Join-Path $outputDir "NeeView.settings.json"
-          if (Test-Path $settingsFile) {
-            Remove-Item $settingsFile -Force
-          }
           
-          Write-Host "Cleaned build artifacts in $outputDir"
+          Write-Host "Cleaned build artifacts in $outputDir (kept NeeView.settings.json)"
           
       - name: Create ZIP archive
         shell: pwsh
