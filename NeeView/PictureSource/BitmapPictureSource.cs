@@ -61,20 +61,13 @@ namespace NeeView
             // 色情報とBPP設定。
             PictureInfo?.SetPixelInfo(bitmapSource);
 
-            // 🔥 自动超分处理
+            // 🔥 自动超分处理 - 简化版:只检查全局开关和条件筛选
             var config = SuperResolutionConfig.Current;
-            if (config != null && config.IsEnabled && config.AutoApplyOnView)
+            if (config != null && config.IsEnabled)
             {
                 long fileSize = ArchiveEntry?.Length ?? -1;
                 var entryName = ArchiveEntry?.EntryName ?? "Unknown";
                 var imagePath = ArchiveEntry?.SystemPath ?? "";
-
-                // 🎯 检查是否被用户手动禁用超分
-                if (!string.IsNullOrEmpty(imagePath) && SuperResolutionViewModel.ShouldSkipAutoSuperResolution(imagePath))
-                {
-                    SuperResolutionLogger.Info($"[跳过超分] {entryName} (用户手动禁用)");
-                    return bitmapSource;
-                }
 
                 if (_srHelper.ShouldProcess(bitmapSource, config, fileSize))
                 {

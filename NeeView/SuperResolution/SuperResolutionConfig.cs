@@ -170,18 +170,8 @@ namespace NeeView.SuperResolution
             set => SetProperty(ref _maxConcurrentProcessing, Math.Max(1, Math.Min(8, value)));
         }
 
-        /// <summary>
-        /// 是否自动应用于查看的图片
-        /// </summary>
-        private bool _autoApplyOnView = true;
-        [DataMember]
-        [DefaultValue(true)]
-        public bool AutoApplyOnView
-        {
-            get => _autoApplyOnView;
-            set => SetProperty(ref _autoApplyOnView, value);
-        }
-
+        // 🎯 注意: AutoApplyOnView 已删除,默认启用条件筛选
+        
         /// <summary>
         /// 自动超分的最大图片尺寸 (宽或高,像素)
         /// 超过此尺寸的图片不会自动超分,避免内存溢出

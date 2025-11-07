@@ -21,16 +21,16 @@ namespace NeeView.SuperResolution
             _config = config;
             _srService = srService;
 
-            // 监听配置变化
+            // 监听配置变化 - AutoApplyOnView已删除,默认启用
             _config.PropertyChanged += (s, e) =>
             {
-                if (e.PropertyName == nameof(_config.AutoApplyOnView))
+                if (e.PropertyName == nameof(_config.IsEnabled))
                 {
-                    _isEnabled = _config.AutoApplyOnView;
+                    _isEnabled = _config.IsEnabled;
                 }
             };
 
-            _isEnabled = _config.AutoApplyOnView;
+            _isEnabled = _config.IsEnabled;
         }
 
         /// <summary>

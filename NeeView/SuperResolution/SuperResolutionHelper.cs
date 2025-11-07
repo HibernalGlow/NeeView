@@ -91,7 +91,7 @@ namespace NeeView.SuperResolution
         /// </summary>
         public bool ShouldProcess(BitmapSource source, SuperResolutionConfig config, long fileSize = -1)
         {
-            if (source == null || !config.IsEnabled || !config.AutoApplyOnView)
+            if (source == null || !config.IsEnabled)
                 return false;
 
             var width = source.PixelWidth;
