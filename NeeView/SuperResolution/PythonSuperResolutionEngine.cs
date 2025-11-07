@@ -173,31 +173,17 @@ namespace NeeView.SuperResolution
                                 _srModule = Py.Import("sr_vulkan.sr_vulkan");
                                 SuperResolutionLogger.Info("sr_vulkan 模块导入成功");
                                 
-                                // ===== 步骤 0: 设置模型路径 (必须在 init 之前!) =====
-                                // 注意: sr_vulkan 会自动从 Python 包中查找模型
-                                // 根据测试,不调用 setModelPath() 时能自动找到模型
-                                // 只有当用户手动指定路径时才需要设置
-                                var config = SuperResolutionConfig.Current;
-                                
-                                if (!string.IsNullOrEmpty(config.ModelPath) && Directory.Exists(config.ModelPath))
-                                {
-                                    try
-                                    {
-                                        SuperResolutionLogger.Info($"使用用户指定的模型路径: {config.ModelPath}");
-                                        dynamic builtins = Py.Import("builtins");
-                                        dynamic pathStr = builtins.str(config.ModelPath);
-                                        _srModule.setModelPath(pathStr);
-                                        SuperResolutionLogger.Info("模型路径设置成功");
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        SuperResolutionLogger.Warning($"设置模型路径失败: {ex.Message}");
-                                    }
-                                }
-                                else
-                                {
-                                    SuperResolutionLogger.Info("未指定模型路径,使用 sr_vulkan 默认路径(自动从 Python 包中查找)");
-                                }
+                                // ===== 关键发现 =====
+                                // sr-vulkan 会自动从已安装的 Python 包中查找模型文件,无需手动设置路径!
+                                // 只要通过 pip 安装了 sr_vulkan_model_waifu2x, sr_vulkan_model_realesrgan 等包,
+                                // sr-vulkan 会自动在 site-packages 中找到它们的 models 子目录。
+                                // ⚠️ 调用 setModelPath() 反而会导致 sr.add() 返回 -20 (invalid model index)!
+                                //
+                                // 经过测试验证:
+                                // ✅ 不调用 setModelPath: 所有模型正常 (procId > 0)
+                                // ❌ 调用 setModelPath: 所有模型失败 (procId = -20)
+                                //
+                                // 所以这里删除了所有 setModelPath() 调用,让 sr-vulkan 自动处理。
                                 
                                 // ===== 步骤 1: 基础初始化 =====
                                 SuperResolutionLogger.Info("调用 sr.init()...");
@@ -292,17 +278,21 @@ namespace NeeView.SuperResolution
                 return false;
             }
 
+            // sr-vulkan 2.0.1 在 initSet() 时已加载所有模型到 GPU
+            // 这里只需要记录当前使用的模型即可
             return await Task.Run(() =>
             {
                 try
                 {
                     _loadedModel = model;
                     _isModelLoaded = true;
+                    SuperResolutionLogger.Info($"切换模型: {model}");
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    _lastError = $"模型加载失败: {ex.Message}";
+                    _lastError = $"模型切换失败: {ex.Message}";
+                    SuperResolutionLogger.Error(_lastError, ex);
                     return false;
                 }
             });
@@ -430,6 +420,31 @@ namespace NeeView.SuperResolution
                             
                             SuperResolutionLogger.Info($"sr_vulkan.add() 返回 procId: {procId}");
 
+                            // 🔥 检查 procId 是否为错误码 (负数表示错误)
+                            if (procId < 0)
+                            {
+                                _lastError = $"sr_vulkan.add() 失败,错误码: {procId}";
+                                SuperResolutionLogger.Error(_lastError);
+                                
+                                // 尝试获取详细错误信息
+                                try
+                                {
+                                    dynamic lastError = _srModule.getLastError();
+                                    var errorMsg = lastError?.ToString();
+                                    if (!string.IsNullOrEmpty(errorMsg))
+                                    {
+                                        _lastError += $"\n详细错误: {errorMsg}";
+                                        SuperResolutionLogger.Error($"sr_vulkan 错误详情: {errorMsg}");
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    SuperResolutionLogger.Warning($"无法获取 sr_vulkan 错误信息: {ex.Message}");
+                                }
+                                
+                                return Array.Empty<byte>();
+                            }
+
                             // 轮询等待结果 (最多等待30秒)
                             // load(0) 返回 (data:bytes, format:str, taskId:int, tick:float) 或 None
                             SuperResolutionLogger.Info("开始轮询处理结果...");
@@ -438,6 +453,13 @@ namespace NeeView.SuperResolution
                             int pollCount = 0;
                             for (int i = 0; i < 300; i++)
                             {
+                                // 🔥 检查取消令牌
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    SuperResolutionLogger.Warning($"处理被取消 (轮询了 {pollCount} 次)");
+                                    cancellationToken.ThrowIfCancellationRequested();
+                                }
+                                
                                 result = _srModule.load(0);  // 参数 0 表示获取任何完成的任务
                                 pollCount++;
                                 
@@ -714,11 +736,11 @@ namespace NeeView.SuperResolution
                 SuperResolutionModel.Waifu2xPhoto2x => "MODEL_WAIFU2X_PHOTO_UP2X",
                 SuperResolutionModel.Waifu2xPhoto4x => "MODEL_WAIFU2X_PHOTO_UP2X",  // 使用 scale 参数控制倍数
                 
-                // RealESRGAN 系列
-                SuperResolutionModel.RealESRGANAnime4x => "MODEL_REALESRGAN_X4PLUS_ANIME",
-                SuperResolutionModel.RealESRGANGeneral4x => "MODEL_REALESRGAN_X4PLUS",
+                // RealESRGAN 系列 - 修正:X4PLUSANIME (无下划线)
+                SuperResolutionModel.RealESRGANAnime4x => "MODEL_REALESRGAN_X4PLUSANIME_UP4X",
+                SuperResolutionModel.RealESRGANGeneral4x => "MODEL_REALESRGAN_X4PLUS_UP4X",
                 
-                // RealCUGAN 系列
+                // RealCUGAN 系列 - 已验证
                 SuperResolutionModel.RealCUGANAnime2x => "MODEL_REALCUGAN_SE_UP2X_CONSERVATIVE",
                 SuperResolutionModel.RealCUGANAnime3x => "MODEL_REALCUGAN_SE_UP3X_DENOISE3X",
                 SuperResolutionModel.RealCUGANAnime4x => "MODEL_REALCUGAN_SE_UP4X_CONSERVATIVE",

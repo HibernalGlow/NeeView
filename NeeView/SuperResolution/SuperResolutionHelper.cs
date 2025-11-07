@@ -42,7 +42,9 @@ namespace NeeView.SuperResolution
                 SuperResolutionLogger.Info($"BitmapSource 已转换为 PNG: {inputPngBytes.Length / 1024.0:F2} KB");
 
                 // 2. 调用超分服务
+                SuperResolutionLogger.Info($"准备调用 ProcessAsync, token.IsCancellationRequested={token.IsCancellationRequested}");
                 var result = await _service.ProcessAsync(inputPngBytes, config, token);
+                SuperResolutionLogger.Info($"ProcessAsync 返回, Success={result.Success}");
 
                 if (!result.Success || result.OutputData == null || result.OutputData.Length == 0)
                 {
@@ -55,6 +57,11 @@ namespace NeeView.SuperResolution
                 SuperResolutionLogger.Info($"[BitmapSource 超分完成] 输出: {outputSource.PixelWidth}x{outputSource.PixelHeight}");
 
                 return outputSource;
+            }
+            catch (OperationCanceledException)
+            {
+                // 🔥 不捕获取消异常,让它向上传播到 BitmapPictureSource
+                throw;
             }
             catch (Exception ex)
             {
