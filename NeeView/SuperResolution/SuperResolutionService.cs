@@ -333,11 +333,17 @@ namespace NeeView.SuperResolution
         /// </summary>
         public void CancelAllTasks()
         {
+            SuperResolutionLogger.Info($"取消所有超分任务 (共{_tasks.Count}个)");
+            
             foreach (var task in _tasks.Values)
             {
                 task.CancellationTokenSource?.Cancel();
                 task.Status = SuperResolutionStatus.Cancelled;
             }
+            
+            // 🔧 优化: 同时清理Python端队列
+            // 注意: sr_vulkan 目前可能没有清理队列的API,这会导致已提交的任务仍会执行
+            // 建议: 后续可考虑在Python端添加清理队列功能
         }
 
         /// <summary>

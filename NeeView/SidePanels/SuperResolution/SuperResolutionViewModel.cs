@@ -76,10 +76,14 @@ namespace NeeView.SuperResolution
         }
 
         /// <summary>
-        /// 处理页面变化事件 - 更新当前图片状态显示
+        /// 处理页面变化事件 - 停止所有超分任务并更新状态显示
         /// </summary>
         private void OnBookChanged(object? sender, BookChangedEventArgs e)
         {
+            // 切换book时停止所有超分任务
+            _service.CancelAllTasks();
+            SuperResolutionLogger.Info("切换书籍，停止所有超分任务");
+
             UpdateCurrentImageInfo();
         }
 

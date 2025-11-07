@@ -567,7 +567,9 @@ namespace NeeView.SuperResolution
                                             }
                                             else
                                             {
-                                                SuperResolutionLogger.Warning($"taskId 不匹配 (期望:{taskId}, 实际:{returnedTaskId}), 继续等待...");
+                                                // 🔧 优化: 记录非预期任务,可能是之前被取消的任务
+                                                SuperResolutionLogger.Warning($"taskId 不匹配 (期望:{taskId}, 实际:{returnedTaskId}), 可能是已取消任务的结果, 丢弃并继续等待...");
+                                                // TODO: 考虑将不匹配的结果也取出并丢弃,避免队列堆积
                                             }
                                         }
                                         else
@@ -586,8 +588,9 @@ namespace NeeView.SuperResolution
                                     SuperResolutionLogger.DebugLog($"仍在处理中... 已轮询 {pollCount} 次");
                                 }
 
-                                // 动态调整轮询间隔: 前5次50ms快速检查,之后100ms
-                                int sleepTime = pollCount < 5 ? 50 : 100;
+                                // 🔧 优化: 动态调整轮询间隔,减少CPU消耗
+                                // 前3次快速检查(50ms), 4-10次中速(100ms), 之后慢速(200ms)
+                                int sleepTime = pollCount < 3 ? 50 : (pollCount < 10 ? 100 : 200);
                                 Thread.Sleep(sleepTime);
                             }
 
