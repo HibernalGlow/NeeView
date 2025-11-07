@@ -28,13 +28,8 @@ env:
 
 jobs:
   build:
-    name: Build NeeView
+    name: Build NeeView x64
     runs-on: windows-latest
-    
-    strategy:
-      matrix:
-        platform: [x64, x86]
-        variant: [self-contained, framework-dependent]
         
     steps:
       - name: Checkout code
@@ -68,37 +63,31 @@ jobs:
           
           Write-Host "Building version: $versionPrefix-$versionSuffix (rev $revision, commit $shortSha)"
           
-      - name: Set platform and variant variables
+      - name: Set build parameters
         id: build-params
         shell: pwsh
         run: |
-          $platform = "${{ matrix.platform }}"
-          $variant = "${{ matrix.variant }}"
-          
-          $selfContained = if ($variant -eq "self-contained") { "true" } else { "false" }
-          $outputSuffix = if ($variant -eq "framework-dependent") { "-fd" } else { "" }
-          $outputDir = "Publish/NeeView-$platform$outputSuffix"
-          
-          echo "SELF_CONTAINED=$selfContained" >> $env:GITHUB_OUTPUT
-          echo "OUTPUT_DIR=$outputDir" >> $env:GITHUB_OUTPUT
-          echo "ARTIFACT_NAME=NeeView-$platform$outputSuffix" >> $env:GITHUB_OUTPUT
+          echo "PLATFORM=x64" >> $env:GITHUB_OUTPUT
+          echo "SELF_CONTAINED=true" >> $env:GITHUB_OUTPUT
+          echo "OUTPUT_DIR=Publish/NeeView-x64" >> $env:GITHUB_OUTPUT
+          echo "ARTIFACT_NAME=NeeView-x64" >> $env:GITHUB_OUTPUT
           
       - name: Build main project
         shell: pwsh
         run: |
           $params = @(
             "-c", "${{ env.CONFIGURATION }}",
-            "-p:Platform=${{ matrix.platform }}",
+            "-p:Platform=x64",
             "-p:VersionPrefix=${{ steps.version.outputs.VERSION_PREFIX }}",
             "-p:VersionSuffix=${{ steps.version.outputs.VERSION_SUFFIX }}",
             "-p:PublishReadyToRun=true",
             "-p:PublishTrimmed=false",
             "-p:PublishSingleFile=false",
-            "--self-contained", "${{ steps.build-params.outputs.SELF_CONTAINED }}",
+            "--self-contained", "true",
             "-o", "${{ steps.build-params.outputs.OUTPUT_DIR }}"
           )
           
-          Write-Host "Publishing NeeView with parameters: $($params -join ' ')"
+          Write-Host "Publishing NeeView x64 (self-contained) with parameters: $($params -join ' ')"
           dotnet publish ${{ env.PROJECT_FILE }} @params
           
           if ($LASTEXITCODE -ne 0) {
@@ -110,14 +99,14 @@ jobs:
         run: |
           $params = @(
             "-c", "${{ env.CONFIGURATION }}",
-            "-p:Platform=${{ matrix.platform }}",
+            "-p:Platform=x64",
             "-p:VersionPrefix=${{ steps.version.outputs.VERSION_PREFIX }}",
             "-p:VersionSuffix=${{ steps.version.outputs.VERSION_SUFFIX }}",
             "--self-contained", "false",
             "-o", "${{ steps.build-params.outputs.OUTPUT_DIR }}/Libraries/Susie"
           )
           
-          Write-Host "Publishing Susie plugin with parameters: $($params -join ' ')"
+          Write-Host "Publishing Susie plugin (x64) with parameters: $($params -join ' ')"
           dotnet publish ${{ env.PROJECT_SUSIE }} @params
           
           if ($LASTEXITCODE -ne 0) {
@@ -254,10 +243,7 @@ jobs:
           
           ### Download
           
-          - **NeeView-x64**: Self-contained x64 build (recommended)
-          - **NeeView-x64-fd**: Framework-dependent x64 build (requires .NET 9.0 runtime)
-          - **NeeView-x86**: Self-contained x86 build
-          - **NeeView-x86-fd**: Framework-dependent x86 build (requires .NET 9.0 runtime)
+          - **NeeView-x64**: Self-contained x64 build (includes .NET 9.0 runtime, no installation required)
           "@
           
           $changelog | Out-File -FilePath changelog.md -Encoding UTF8

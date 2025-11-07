@@ -1,12 +1,7 @@
-# 本地构建脚本 - NeeView 44.2 Dev
+# 本地构建脚本 - NeeView 44.2 Dev (仅 x64 自包含版本)
 # 用于测试 GitHub Actions 工作流中的构建步骤
 
 Param(
-    [ValidateSet("x64", "x86", "All")]
-    [string]$Platform = "x64",
-    
-    [switch]$FrameworkDependent,
-    
     [string]$Version = "44.2.0",
     
     [switch]$Clean
@@ -23,26 +18,18 @@ $VersionSuffix = "dev.$Timestamp"
 $FullVersion = "$Version-$VersionSuffix"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "NeeView Local Build Script" -ForegroundColor Cyan
+Write-Host "NeeView Local Build Script (x64 Only)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Version: $FullVersion" -ForegroundColor Yellow
-Write-Host "Platform: $Platform" -ForegroundColor Yellow
-Write-Host "Framework Dependent: $FrameworkDependent" -ForegroundColor Yellow
+Write-Host "Platform: x64 (self-contained)" -ForegroundColor Yellow
 Write-Host ""
 
 function Build-NeeView {
-    param(
-        [string]$Arch,
-        [bool]$IsFD
-    )
-    
-    $SelfContained = if ($IsFD) { "false" } else { "true" }
-    $OutputSuffix = if ($IsFD) { "-fd" } else { "" }
-    $OutputDir = "Publish\NeeView-$Arch$OutputSuffix"
-    
     Write-Host "----------------------------------------" -ForegroundColor Green
-    Write-Host "Building NeeView-$Arch$OutputSuffix" -ForegroundColor Green
+    Write-Host "Building NeeView x64 (Self-Contained)" -ForegroundColor Green
     Write-Host "----------------------------------------" -ForegroundColor Green
+    
+    $OutputDir = "Publish\NeeView-x64"
     
     # 清理旧构建
     if ($Clean -and (Test-Path $OutputDir)) {
@@ -56,13 +43,13 @@ function Build-NeeView {
         "publish",
         $ProjectFile,
         "-c", $Configuration,
-        "-p:Platform=$Arch",
+        "-p:Platform=x64",
         "-p:VersionPrefix=$Version",
         "-p:VersionSuffix=$VersionSuffix",
         "-p:PublishReadyToRun=true",
         "-p:PublishTrimmed=false",
         "-p:PublishSingleFile=false",
-        "--self-contained", $SelfContained,
+        "--self-contained", "true",
         "-o", $OutputDir
     )
     
@@ -77,7 +64,7 @@ function Build-NeeView {
         "publish",
         $SusieProject,
         "-c", $Configuration,
-        "-p:Platform=$Arch",
+        "-p:Platform=x64",
         "-p:VersionPrefix=$Version",
         "-p:VersionSuffix=$VersionSuffix",
         "--self-contained", "false",
@@ -118,7 +105,7 @@ function Build-NeeView {
     
     # 创建 ZIP 压缩包
     Write-Host "Creating ZIP archive..." -ForegroundColor Cyan
-    $ArchiveName = "NeeView-$Arch$OutputSuffix-$FullVersion.zip"
+    $ArchiveName = "NeeView-x64-$FullVersion.zip"
     if (Test-Path $ArchiveName) {
         Remove-Item $ArchiveName -Force
     }
@@ -132,15 +119,7 @@ function Build-NeeView {
 
 # 执行构建
 try {
-    if ($Platform -eq "All") {
-        Build-NeeView -Arch "x64" -IsFD $false
-        Build-NeeView -Arch "x64" -IsFD $true
-        Build-NeeView -Arch "x86" -IsFD $false
-        Build-NeeView -Arch "x86" -IsFD $true
-    }
-    else {
-        Build-NeeView -Arch $Platform -IsFD $FrameworkDependent
-    }
+    Build-NeeView
     
     Write-Host "========================================" -ForegroundColor Green
     Write-Host "Build completed successfully!" -ForegroundColor Green

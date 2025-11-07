@@ -48,41 +48,32 @@ git push origin v44.2.0
 
 ## 📋 构建产物
 
-每次构建生成 **4 个 ZIP 包**:
+每次构建生成 **1 个 ZIP 包**:
 
-| 文件名 | 说明 |
-|--------|------|
-| `NeeView-x64-{version}.zip` | x64 自包含版本 (推荐) |
-| `NeeView-x64-fd-{version}.zip` | x64 框架依赖版本 |
-| `NeeView-x86-{version}.zip` | x86 自包含版本 |
-| `NeeView-x86-fd-{version}.zip` | x86 框架依赖版本 |
+| 文件名 | 大小 (约) | 说明 |
+|--------|----------|------|
+| `NeeView-x64-{version}.zip` | ~50MB | x64 自包含版本,包含 .NET 9.0 运行时,无需安装框架 ✅ |
 
-版本号格式: `44.2.0-dev.20250127123045`
+版本号格式: `44.2.0-dev.20251107123045`
 
 ## 🧪 本地测试
 
-### 构建 x64 版本
+### 构建 x64 自包含版本
 
 ```powershell
-.\Build-Local.ps1 -Platform x64
-```
-
-### 构建框架依赖版本
-
-```powershell
-.\Build-Local.ps1 -Platform x64 -FrameworkDependent
-```
-
-### 构建所有变体
-
-```powershell
-.\Build-Local.ps1 -Platform All
+.\Build-Local.ps1
 ```
 
 ### 清理并重新构建
 
 ```powershell
-.\Build-Local.ps1 -Platform x64 -Clean
+.\Build-Local.ps1 -Clean
+```
+
+### 指定版本号
+
+```powershell
+.\Build-Local.ps1 -Version "44.3.0"
 ```
 
 ## 📊 查看构建状态
@@ -128,8 +119,8 @@ git push origin v44.2.0
 
 ## 📝 工作流特性
 
-- ✅ **多平台**: x64 / x86
-- ✅ **多变体**: 自包含 / 框架依赖
+- ✅ **x64 平台**: 仅编译 64 位版本
+- ✅ **自包含**: 包含 .NET 9.0 运行时,无需安装框架
 - ✅ **自动版本**: 时间戳后缀
 - ✅ **自动清理**: 移除 PDB 和设置文件
 - ✅ **ZIP 打包**: 自动压缩
