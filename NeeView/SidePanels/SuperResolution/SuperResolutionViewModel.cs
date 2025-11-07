@@ -26,12 +26,16 @@ namespace NeeView.SuperResolution
             ProcessCurrentImageCommand = new RelayCommand(ProcessCurrentImage, CanProcessCurrentImage);
             OpenBatchProcessCommand = new RelayCommand(OpenBatchProcess);
             InitializeServiceCommand = new RelayCommand(async () => await InitializeServiceAsync(null, true));
+            ExportLogCommand = new RelayCommand(ExportLog);
 
             // 监听配置变化
             _config.PropertyChanged += OnConfigPropertyChanged;
 
             // 监听页面变化 (用于更新状态显示)
             BookOperation.Current.BookChanged += OnBookChanged;
+
+            // 监听超分日志
+            SuperResolutionLogger.LogWritten += OnLogWritten;
 
             // 初始化服务
             _ = InitializeServiceAsync();
@@ -48,6 +52,27 @@ namespace NeeView.SuperResolution
             {
                 SuperResolutionLogger.Info($"模型已更改为: {_config.Model}");
             }
+        }
+
+        private void OnLogWritten(object? sender, SuperResolutionLogger.LogEventArgs e)
+        {
+            // 在UI线程中更新日志文本
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                // 限制日志文本长度，避免内存溢出
+                const int MaxLogLength = 10000;
+                var newLogText = LogText + e.FormattedMessage + "\n";
+                
+                if (newLogText.Length > MaxLogLength)
+                {
+                    // 保留最新的日志，移除旧的
+                    var lines = newLogText.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                    var startIndex = Math.Max(0, lines.Length - 100); // 保留大约100行
+                    newLogText = string.Join("\n", lines.Skip(startIndex)) + "\n";
+                }
+                
+                LogText = newLogText;
+            });
         }
 
         /// <summary>
@@ -370,6 +395,16 @@ namespace NeeView.SuperResolution
             set => SetProperty(ref _currentImageResolution, value);
         }
 
+        /// <summary>
+        /// 日志文本 (用于UI显示)
+        /// </summary>
+        private string _logText = "";
+        public string LogText
+        {
+            get => _logText;
+            set => SetProperty(ref _logText, value);
+        }
+
         #endregion
 
         #region Commands
@@ -388,6 +423,11 @@ namespace NeeView.SuperResolution
         /// 初始化服务命令
         /// </summary>
         public ICommand InitializeServiceCommand { get; }
+
+        /// <summary>
+        /// 导出日志命令
+        /// </summary>
+        public ICommand ExportLogCommand { get; }
 
         /// <summary>
         /// 可用的模型类型列表(用于下拉框)
@@ -652,6 +692,45 @@ namespace NeeView.SuperResolution
         {
             // TODO: 打开批量处理窗口
             StatusMessage = "Batch processing window (to be implemented)";
+        }
+
+        /// <summary>
+        /// 导出日志到文件
+        /// </summary>
+        private void ExportLog()
+        {
+            try
+            {
+                var logPath = SuperResolutionLogger.GetLogPath();
+                if (System.IO.File.Exists(logPath))
+                {
+                    // 复制日志文件到用户选择的目录
+                    var saveDialog = new Microsoft.Win32.SaveFileDialog
+                    {
+                        Title = "导出超分日志",
+                        Filter = "日志文件 (*.log)|*.log|所有文件 (*.*)|*.*",
+                        FileName = $"SuperResolution_Log_{DateTime.Now:yyyyMMdd_HHmmss}.log",
+                        DefaultExt = ".log"
+                    };
+
+                    if (saveDialog.ShowDialog() == true)
+                    {
+                        System.IO.File.Copy(logPath, saveDialog.FileName, true);
+                        StatusMessage = $"日志已导出到: {saveDialog.FileName}";
+                        SuperResolutionLogger.Info($"日志已导出到: {saveDialog.FileName}");
+                    }
+                }
+                else
+                {
+                    StatusMessage = "日志文件不存在";
+                    SuperResolutionLogger.Warning("尝试导出日志但文件不存在");
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"导出日志失败: {ex.Message}";
+                SuperResolutionLogger.Error($"导出日志失败: {ex.Message}", ex);
+            }
         }
 
         #endregion

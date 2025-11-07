@@ -70,6 +70,28 @@ namespace NeeView.SuperResolution
         }
 
         /// <summary>
+        /// 日志写入事件
+        /// </summary>
+        public static event EventHandler<LogEventArgs>? LogWritten;
+
+        /// <summary>
+        /// 日志事件参数
+        /// </summary>
+        public class LogEventArgs : EventArgs
+        {
+            public LogLevel Level { get; }
+            public string Message { get; }
+            public string FormattedMessage { get; }
+
+            public LogEventArgs(LogLevel level, string message, string formattedMessage)
+            {
+                Level = level;
+                Message = message;
+                FormattedMessage = formattedMessage;
+            }
+        }
+
+        /// <summary>
         /// 写入日志
         /// </summary>
         public static void Log(LogLevel level, string message, Exception? exception = null)
@@ -94,6 +116,9 @@ namespace NeeView.SuperResolution
             }
 
             var logMessage = logBuilder.ToString();
+
+            // 触发日志写入事件
+            LogWritten?.Invoke(null, new LogEventArgs(level, message, logMessage.TrimEnd()));
 
             // 输出到调试窗口
             Debug.WriteLine(logMessage);

@@ -229,6 +229,43 @@
                    HorizontalAlignment="Stretch"
                    ToolTip="对当前显示的图片应用超分辨率处理"/>
 
+            <!-- 日志区域 -->
+            <GroupBox Header="运行日志" Margin="0,15,0,10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 日志文本框 -->
+                    <TextBox Grid.Row="0"
+                             Text="{Binding LogText, Mode=OneWay}"
+                             IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas"
+                             FontSize="10"
+                             Background="{DynamicResource Panel.Background}"
+                             Foreground="{DynamicResource Panel.Foreground}"
+                             BorderBrush="{DynamicResource Panel.Border}"
+                             Margin="5"
+                             MinHeight="150"
+                             MaxHeight="300"
+                             TextWrapping="NoWrap"
+                             AcceptsReturn="True"
+                             ToolTip="超分辨率运行日志，显示处理状态和错误信息"/>
+
+                    <!-- 导出按钮 -->
+                    <Button Grid.Row="1"
+                            Content="导出日志"
+                            Command="{Binding ExportLogCommand}"
+                            Margin="5"
+                            Padding="5,3"
+                            HorizontalAlignment="Stretch"
+                            ToolTip="将日志导出为文件"/>
+                </Grid>
+            </GroupBox>
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>
