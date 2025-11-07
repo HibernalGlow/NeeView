@@ -41,26 +41,8 @@ namespace NeeView.SuperResolution
                 var inputPngBytes = ImageFormatConverter.ConvertBitmapSourceToPng(source);
                 SuperResolutionLogger.Info($"BitmapSource 已转换为 PNG: {inputPngBytes.Length / 1024.0:F2} KB");
 
-                // 2. 调用超分服务 (带60秒超时保护)
-                var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
-
-                SuperResolutionLogger.Info($"[开始处理] 模型: {config.Model}, 超时时间: 60秒");
-                var processTask = _service.ProcessAsync(inputPngBytes, config, timeoutCts.Token);
-                var delayTask = Task.Delay(TimeSpan.FromSeconds(60), token);
-
-                var completedTask = await Task.WhenAny(processTask, delayTask);
-
-                SuperResolutionResult result;
-                if (completedTask == delayTask)
-                {
-                    SuperResolutionLogger.Error($"[处理超时] 60秒内未完成,模型: {config.Model}, 图片尺寸: {source.PixelWidth}x{source.PixelHeight}");
-                    timeoutCts.Cancel();
-                    return null;
-                }
-
-                result = await processTask;
-                SuperResolutionLogger.Info($"[处理完成] 耗时: {result.ProcessingTime:F2}秒, 成功: {result.Success}");
+                // 2. 调用超分服务
+                var result = await _service.ProcessAsync(inputPngBytes, config, token);
 
                 if (!result.Success || result.OutputData == null || result.OutputData.Length == 0)
                 {
@@ -73,11 +55,6 @@ namespace NeeView.SuperResolution
                 SuperResolutionLogger.Info($"[BitmapSource 超分完成] 输出: {outputSource.PixelWidth}x{outputSource.PixelHeight}");
 
                 return outputSource;
-            }
-            catch (OperationCanceledException)
-            {
-                SuperResolutionLogger.Info($"[处理取消] 用户取消或超时");
-                return null;
             }
             catch (Exception ex)
             {
