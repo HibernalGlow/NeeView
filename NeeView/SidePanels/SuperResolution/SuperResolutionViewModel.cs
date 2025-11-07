@@ -31,6 +31,9 @@ namespace NeeView.SuperResolution
             // 监听模型路径变化
             _config.PropertyChanged += OnConfigPropertyChanged;
 
+            // 监听页面变化
+            BookOperation.Current.BookChanged += OnBookChanged;
+
             // 初始化服务
             _ = InitializeServiceAsync();
         }
@@ -45,6 +48,62 @@ namespace NeeView.SuperResolution
             else if (e.PropertyName == nameof(SuperResolutionConfig.IsEnabled))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        /// <summary>
+        /// 处理页面变化事件
+        /// </summary>
+        private void OnBookChanged(object? sender, BookChangedEventArgs e)
+        {
+            UpdateCurrentImageInfo();
+        }
+
+        /// <summary>
+        /// 更新当前图片信息
+        /// </summary>
+        private void UpdateCurrentImageInfo()
+        {
+            try
+            {
+                var book = BookOperation.Current.Book;
+                if (book == null || book.CurrentPage == null)
+                {
+                    CurrentImagePath = "";
+                    CurrentImageStatus = SuperResolutionImageStatus.None;
+                    EnableCurrentImageSuperResolution = false;
+                    return;
+                }
+
+                var page = book.CurrentPage;
+                var entry = page.ArchiveEntry;
+                if (entry != null)
+                {
+                    CurrentImagePath = entry.SystemPath;
+                    
+                    // 检查缓存状态
+                    var cache = SuperResolutionImageCache.Current;
+                    var cacheItem = cache.Get(CurrentImagePath);
+                    
+                    if (cacheItem != null)
+                    {
+                        CurrentImageStatus = cacheItem.Status;
+                        // 如果有超分结果且自动超分开启，自动勾选
+                        if (cacheItem.Status == SuperResolutionImageStatus.Completed && _config.AutoApplyOnView)
+                        {
+                            EnableCurrentImageSuperResolution = true;
+                        }
+                    }
+                    else
+                    {
+                        CurrentImageStatus = SuperResolutionImageStatus.None;
+                        EnableCurrentImageSuperResolution = false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SuperResolutionLogger.Error($"更新当前图片信息失败: {ex.Message}", ex);
             }
         }
 
@@ -208,6 +267,66 @@ namespace NeeView.SuperResolution
         {
             get => _modelScanStatus;
             set => SetProperty(ref _modelScanStatus, value);
+        }
+
+        /// <summary>
+        /// 当前图片启用超分（类似 picacg curWaifu2x）
+        /// </summary>
+        private bool _enableCurrentImageSuperResolution;
+        public bool EnableCurrentImageSuperResolution
+        {
+            get => _enableCurrentImageSuperResolution;
+            set
+            {
+                if (SetProperty(ref _enableCurrentImageSuperResolution, value))
+                {
+                    _ = HandleCurrentImageToggleAsync(value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 当前图片超分状态
+        /// </summary>
+        private SuperResolutionImageStatus _currentImageStatus = SuperResolutionImageStatus.None;
+        public SuperResolutionImageStatus CurrentImageStatus
+        {
+            get => _currentImageStatus;
+            set
+            {
+                if (SetProperty(ref _currentImageStatus, value))
+                {
+                    RaisePropertyChanged(nameof(CurrentImageStatusText));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 当前图片状态文本
+        /// </summary>
+        public string CurrentImageStatusText
+        {
+            get
+            {
+                return CurrentImageStatus switch
+                {
+                    SuperResolutionImageStatus.None => "未超分",
+                    SuperResolutionImageStatus.Processing => "超分中...",
+                    SuperResolutionImageStatus.Completed => "已超分",
+                    SuperResolutionImageStatus.Failed => "超分失败",
+                    _ => "未知"
+                };
+            }
+        }
+
+        /// <summary>
+        /// 当前图片路径
+        /// </summary>
+        private string _currentImagePath = "";
+        public string CurrentImagePath
+        {
+            get => _currentImagePath;
+            set => SetProperty(ref _currentImagePath, value);
         }
 
         #endregion
@@ -600,6 +719,184 @@ namespace NeeView.SuperResolution
 
             // 默认返回
             return SuperResolutionModel.Waifu2xAnime2x;
+        }
+
+        /// <summary>
+        /// 处理当前图片超分切换
+        /// </summary>
+        private async Task HandleCurrentImageToggleAsync(bool enable)
+        {
+            if (string.IsNullOrEmpty(CurrentImagePath))
+            {
+                SuperResolutionLogger.Warning("当前没有打开的图片");
+                return;
+            }
+
+            var cache = SuperResolutionImageCache.Current;
+            var cacheItem = cache.Get(CurrentImagePath);
+
+            if (enable)
+            {
+                // 启用超分：显示超分图
+                if (cacheItem != null && cacheItem.Status == SuperResolutionImageStatus.Completed && cacheItem.SuperResolutionData != null)
+                {
+                    // 已经有超分结果，直接显示
+                    SuperResolutionLogger.Info($"从缓存加载超分图: {CurrentImagePath}");
+                    await ShowSuperResolutionImageAsync(cacheItem.SuperResolutionData);
+                    CurrentImageStatus = SuperResolutionImageStatus.Completed;
+                }
+                else if (cacheItem != null && cacheItem.Status == SuperResolutionImageStatus.Processing)
+                {
+                    // 正在处理中
+                    SuperResolutionLogger.Info($"超分处理中: {CurrentImagePath}");
+                    CurrentImageStatus = SuperResolutionImageStatus.Processing;
+                }
+                else
+                {
+                    // 需要进行超分处理
+                    await ProcessCurrentImageForToggleAsync();
+                }
+            }
+            else
+            {
+                // 取消超分：显示原图
+                if (cacheItem != null && cacheItem.OriginalData != null)
+                {
+                    SuperResolutionLogger.Info($"显示原图: {CurrentImagePath}");
+                    await ShowOriginalImageAsync(cacheItem.OriginalData);
+                }
+                else
+                {
+                    SuperResolutionLogger.Info($"重新加载原图: {CurrentImagePath}");
+                    // 重新加载当前图片
+                    BookHub.Current.RequestLoad(this, CurrentImagePath, null, BookLoadOption.None, true);
+                }
+                CurrentImageStatus = SuperResolutionImageStatus.None;
+            }
+        }
+
+        /// <summary>
+        /// 显示超分图片
+        /// </summary>
+        private async Task ShowSuperResolutionImageAsync(byte[] imageData)
+        {
+            await Task.Run(() =>
+            {
+                App.Current.Dispatcher.Invoke(() =>
+                {
+                    var tempPath = System.IO.Path.Combine(
+                        System.IO.Path.GetTempPath(),
+                        "NeeView_SR_Current",
+                        $"{System.IO.Path.GetFileNameWithoutExtension(CurrentImagePath)}_SR.png"
+                    );
+
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(tempPath)!);
+                    System.IO.File.WriteAllBytes(tempPath, imageData);
+
+                    BookHub.Current.RequestLoad(this, tempPath, null, BookLoadOption.None, true);
+                });
+            });
+        }
+
+        /// <summary>
+        /// 显示原图
+        /// </summary>
+        private async Task ShowOriginalImageAsync(byte[] imageData)
+        {
+            await Task.Run(() =>
+            {
+                App.Current.Dispatcher.Invoke(() =>
+                {
+                    BookHub.Current.RequestLoad(this, CurrentImagePath, null, BookLoadOption.None, true);
+                });
+            });
+        }
+
+        /// <summary>
+        /// 为切换功能处理当前图片
+        /// </summary>
+        private async Task ProcessCurrentImageForToggleAsync()
+        {
+            CurrentImageStatus = SuperResolutionImageStatus.Processing;
+            StatusMessage = "正在超分当前图片...";
+
+            try
+            {
+                // 获取图片数据
+                var book = BookOperation.Current.Book;
+                if (book == null || book.CurrentPage == null)
+                {
+                    CurrentImageStatus = SuperResolutionImageStatus.None;
+                    return;
+                }
+
+                var currentPage = book.CurrentPage;
+                var entry = currentPage.ArchiveEntry;
+                byte[]? imageData = null;
+
+                if (entry != null)
+                {
+                    var fileProxy = await entry.GetFileProxyAsync(false, System.Threading.CancellationToken.None);
+                    imageData = await System.IO.File.ReadAllBytesAsync(fileProxy.Path);
+                }
+
+                if (imageData == null || imageData.Length == 0)
+                {
+                    CurrentImageStatus = SuperResolutionImageStatus.Failed;
+                    return;
+                }
+
+                // 保存到缓存
+                var cache = SuperResolutionImageCache.Current;
+                cache.Update(CurrentImagePath, item =>
+                {
+                    item.OriginalData = imageData;
+                    item.Status = SuperResolutionImageStatus.Processing;
+                });
+
+                // 执行超分
+                var result = await _service.ProcessAsync(imageData, _config, System.Threading.CancellationToken.None);
+
+                if (result.Success && result.OutputData != null)
+                {
+                    // 更新缓存
+                    cache.Update(CurrentImagePath, item =>
+                    {
+                        item.SuperResolutionData = result.OutputData;
+                        item.Status = SuperResolutionImageStatus.Completed;
+                        item.OriginalWidth = result.OriginalWidth;
+                        item.OriginalHeight = result.OriginalHeight;
+                        item.SuperResolutionWidth = result.OutputWidth;
+                        item.SuperResolutionHeight = result.OutputHeight;
+                        item.ProcessingTime = result.ProcessingTime;
+                    });
+
+                    CurrentImageStatus = SuperResolutionImageStatus.Completed;
+
+                    // 如果仍然勾选，显示超分图
+                    if (EnableCurrentImageSuperResolution)
+                    {
+                        await ShowSuperResolutionImageAsync(result.OutputData);
+                    }
+
+                    SuperResolutionLogger.Info($"当前图片超分完成: {CurrentImagePath}");
+                }
+                else
+                {
+                    cache.Update(CurrentImagePath, item =>
+                    {
+                        item.Status = SuperResolutionImageStatus.Failed;
+                        item.ErrorMessage = result.ErrorMessage;
+                    });
+                    CurrentImageStatus = SuperResolutionImageStatus.Failed;
+                    SuperResolutionLogger.Error($"当前图片超分失败: {result.ErrorMessage}");
+                }
+            }
+            catch (Exception ex)
+            {
+                CurrentImageStatus = SuperResolutionImageStatus.Failed;
+                SuperResolutionLogger.Error($"处理当前图片失败: {ex.Message}", ex);
+            }
         }
 
         #endregion

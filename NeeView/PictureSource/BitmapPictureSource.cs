@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using NeeView.SuperResolution;
 
 namespace NeeView
 {
@@ -15,6 +17,7 @@ namespace NeeView
     public class BitmapPictureSource : IPictureSource<IStreamSource>
     {
         private static readonly BitmapFactory _bitmapFactory = new();
+        private static readonly SuperResolutionHelper _srHelper = new();
 
 
         public BitmapPictureSource(ArchiveEntry archiveEntry, PictureInfo? pictureInfo)
@@ -57,6 +60,34 @@ namespace NeeView
 
             // 色情報とBPP設定。
             PictureInfo?.SetPixelInfo(bitmapSource);
+
+            // 🔥 自动超分处理 - 像 AVIF/JXL 一样直接传递像素数据
+            var config = SuperResolutionConfig.Current;
+            if (config != null && config.IsEnabled && config.AutoApplyOnView)
+            {
+                // 检查是否应该处理
+                if (_srHelper.ShouldProcess(bitmapSource, config))
+                {
+                    try
+                    {
+                        SuperResolutionLogger.Info($"[自动超分] 压缩包图片: {ArchiveEntry.EntryName}");
+                        var srResult = await _srHelper.ProcessBitmapSourceAsync(bitmapSource, config, token);
+                        if (srResult != null)
+                        {
+                            SuperResolutionLogger.Info($"[自动超分成功] {ArchiveEntry.EntryName}: {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight} -> {srResult.PixelWidth}x{srResult.PixelHeight}");
+                            return srResult;
+                        }
+                        else
+                        {
+                            SuperResolutionLogger.Warning($"[自动超分失败] {ArchiveEntry.EntryName}, 使用原图");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        SuperResolutionLogger.Error($"[自动超分异常] {ArchiveEntry.EntryName}: {ex.Message}", ex);
+                    }
+                }
+            }
 
             return bitmapSource;
         }

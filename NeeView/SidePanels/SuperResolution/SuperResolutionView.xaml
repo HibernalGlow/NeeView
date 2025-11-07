@@ -34,6 +34,32 @@
                      FontSize="14"
                      Margin="0,5"/>
 
+            <!-- 当前图片信息（类似 picacg 图片信息区） -->
+            <GroupBox Header="当前图片" Margin="0,10">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="状态：" Margin="0,2"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CurrentImageStatusText}" 
+                                  Margin="5,2" FontWeight="Bold"/>
+
+                        <CheckBox Grid.Row="1" Grid.ColumnSpan="2"
+                                 Content="当前图片启用超分 (切换显示)" 
+                                 IsChecked="{Binding EnableCurrentImageSuperResolution}"
+                                 Margin="0,5"
+                                 ToolTip="勾选显示超分图，取消显示原图"/>
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
             <!-- 处理选项 -->
             <GroupBox Header="处理设置" Margin="0,10">
                 <StackPanel>
