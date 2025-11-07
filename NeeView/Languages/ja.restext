@@ -299,6 +299,7 @@ Bookshelf.MoreMenu.SearchIncludeSubdirectories=サブフォルダーを含める
 Bookshelf.MoreMenu.SearchIncremental=インクリメンタル サーチ
 Bookshelf.MoreMenu.SearchOptions=検索オプション
 Bookshelf.MoreMenu.Subfolder=現在の場所ではサブフォルダーを読み込む
+Bookshelf.MultiSelect.ToolTip=複数選択モード
 Bookshelf.Sync.ToolTip=表示中のブックのある場所に移動
 BookshelfConfig.DefaultFolderOrder=標準の既定の並び順
 BookshelfConfig.ExcludePattern=表示から除外するファイル名のパターン

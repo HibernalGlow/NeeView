@@ -28,6 +28,7 @@ namespace NeeView
         private readonly BookshelfFolderList _model;
         private Dictionary<FolderOrder, string> _folderOrderList = AliasNameExtensions.GetAliasNameDictionary<FolderOrder>();
         private double _dpi = 1.0;
+        private bool _isMultiSelectMode = false;
 
 
         public FolderListViewModel(BookshelfFolderList model)
@@ -115,6 +116,12 @@ namespace NeeView
             set => _model.FolderTreeAreaHeight = value.Value;
         }
 
+        public bool IsMultiSelectMode
+        {
+            get => _isMultiSelectMode;
+            set => SetProperty(ref _isMultiSelectMode, value);
+        }
+
 
         #region Commands
 
@@ -134,6 +141,7 @@ namespace NeeView
         private RelayCommand<PanelListItemStyle>? _setListItemStyle;
         private RelayCommand? _toggleVisibleFoldersTree;
         private RelayCommand? _clearHistoryInPlace;
+        private RelayCommand? _toggleMultiSelectMode;
 
         public string MoveToHomeToolTip { get; } = CommandTools.CreateToolTipText("Bookshelf.Home.ToolTip", Key.Home, ModifierKeys.Alt);
         public string MoveToPreviousToolTip { get; } = CommandTools.CreateToolTipText("Bookshelf.Back.ToolTip", Key.Left, ModifierKeys.Alt);
@@ -264,6 +272,19 @@ namespace NeeView
                 void Execute(PanelListItemStyle style)
                 {
                     _model.FolderListConfig.PanelListItemStyle = style;
+                }
+            }
+        }
+
+        public RelayCommand ToggleMultiSelectMode
+        {
+            get
+            {
+                return _toggleMultiSelectMode = _toggleMultiSelectMode ?? new RelayCommand(Execute);
+
+                void Execute()
+                {
+                    IsMultiSelectMode = !IsMultiSelectMode;
                 }
             }
         }

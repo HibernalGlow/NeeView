@@ -299,6 +299,7 @@ Bookshelf.MoreMenu.SearchIncludeSubdirectories=包括子目录
 Bookshelf.MoreMenu.SearchIncremental=增量搜索
 Bookshelf.MoreMenu.SearchOptions=搜索选项
 Bookshelf.MoreMenu.Subfolder=在该位置载入子文件夹
+Bookshelf.MultiSelect.ToolTip=批量选择模式
 Bookshelf.Sync.ToolTip=转到当前书籍所在位置
 BookshelfConfig.DefaultFolderOrder=默认排序方式
 BookshelfConfig.ExcludePattern=从显示中排除的文件名样式

@@ -28,6 +28,12 @@
             <local:BrushAlphaToVisibilityConverter x:Key="BrushAlphaToVisibilityConverter" />
             <local:PendingCountToOpacityConverter x:Key="PendingCountToOpacityConverter" />
 
+            <Style x:Key="ItemCheckBoxStyle" TargetType="CheckBox">
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="5,0,2,0"/>
+                <Setter Property="IsChecked" Value="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+            </Style>
+
             <Style x:Key="NameStyleBase" TargetType="TextBlock" >
                 <Setter Property="Text" Value="{Binding DisplayName}"/>
                 <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -113,6 +119,8 @@
             <DataTemplate x:Key="NormalTemplate">
                 <DockPanel Style="{StaticResource DetailToolTipDockPanel}" LastChildFill="False" MinHeight="20">
                     <Rectangle Style="{StaticResource VerticalSelectedStyle}" />
+                    <CheckBox DockPanel.Dock="Left" Style="{StaticResource ItemCheckBoxStyle}"
+                              Visibility="{Binding DataContext.IsMultiSelectMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                     <local:FolderListIcon DockPanel.Dock="Right" FolderItem="{Binding}" Margin="1" />
                     <TextBlock x:Name="FileNameTextBlock" Style="{StaticResource NormalNameStyle}" Margin="5,1" Opacity="{Binding PendingCount, Converter={StaticResource PendingCountToOpacityConverter}}" />
                 </DockPanel>
@@ -121,6 +129,8 @@
             <DataTemplate x:Key="ContentTemplate">
                 <DockPanel>
                     <Rectangle Style="{StaticResource VerticalSelectedStyle}" />
+                    <CheckBox DockPanel.Dock="Left" Style="{StaticResource ItemCheckBoxStyle}"
+                              Visibility="{Binding DataContext.IsMultiSelectMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                     <DockPanel LastChildFill="True" Margin="2">
                         <local:PanelListContentImage Thumbnail="{Binding Thumbnail}" Opacity="{Binding PendingCount, Converter={StaticResource PendingCountToOpacityConverter}}" />
                         <DockPanel Style="{StaticResource DetailToolTipDockPanel}">
@@ -144,6 +154,8 @@
             <DataTemplate x:Key="BannerTemplate">
                 <DockPanel>
                     <Rectangle Style="{StaticResource VerticalSelectedStyle}" />
+                    <CheckBox DockPanel.Dock="Left" Style="{StaticResource ItemCheckBoxStyle}"
+                              Visibility="{Binding DataContext.IsMultiSelectMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                     <DockPanel Margin="0,0" HorizontalAlignment="Stretch" LastChildFill="False">
                         <DockPanel DockPanel.Dock="Bottom" Style="{StaticResource DetailToolTipDockPanel}" Margin="2">
                             <local:FolderListIcon DockPanel.Dock="Right" FolderItem="{Binding}" />
@@ -158,6 +170,8 @@
                 <StackPanel Style="{StaticResource DetailToolTipBasePanel}" Margin="5" Width="{Binding Source={x:Static local:Config.Current}, Path=Panels.ThumbnailItemProfile.ShapeWidth}">
                     <Grid>
                         <local:PanelListThumbnailImage Thumbnail="{Binding Thumbnail}" Opacity="{Binding PendingCount, Converter={StaticResource PendingCountToOpacityConverter}}" />
+                        <CheckBox Style="{StaticResource ItemCheckBoxStyle}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2"
+                                  Visibility="{Binding DataContext.IsMultiSelectMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                         <StackPanel Style="{StaticResource OverrideIconStackPanelStyle}">
                             <local:FolderListIcon DockPanel.Dock="Right" FolderItem="{Binding}" VerticalAlignment="Top" IsKeepArea="False" />
                         </StackPanel>

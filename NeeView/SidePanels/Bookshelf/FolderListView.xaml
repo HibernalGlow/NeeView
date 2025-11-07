@@ -131,6 +131,11 @@
 
                 <DockPanel KeyboardNavigation.TabNavigation="Local">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                        <ToggleButton x:Name="MultiSelectButton" Style="{StaticResource FolderListToggleButtonStyle}" TabIndex="2" 
+                                      ToolTip="{properties:TextBinding Bookshelf.MultiSelect.ToolTip}"
+                                      IsChecked="{Binding IsMultiSelectMode}">
+                            <TextBlock Text="✅" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </ToggleButton>
                         <Button x:Name="FoderTreeButton" Style="{StaticResource FolderListButtonStyle}" TabIndex="2" ToolTip="{properties:TextBinding Word.FoldersTree}"
                                 Command="{Binding ToggleVisibleFoldersTree}">
                             <Image Source="{StaticResource ic_treeview_a}" />

@@ -299,6 +299,7 @@ Bookshelf.MoreMenu.SearchIncludeSubdirectories=包括子資料夾
 Bookshelf.MoreMenu.SearchIncremental=增量搜尋
 Bookshelf.MoreMenu.SearchOptions=搜尋選項
 Bookshelf.MoreMenu.Subfolder=在這個位置讀入子資料夾
+Bookshelf.MultiSelect.ToolTip=批量選擇模式
 Bookshelf.Sync.ToolTip=移動到顯示中的書本位置
 BookshelfConfig.DefaultFolderOrder=標準預設排序
 BookshelfConfig.ExcludePattern=從顯示排除的檔案名稱樣式

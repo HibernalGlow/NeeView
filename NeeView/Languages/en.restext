@@ -301,6 +301,7 @@ Bookshelf.MoreMenu.SearchIncludeSubdirectories=Include subdirectories
 Bookshelf.MoreMenu.SearchIncremental=Incremental search
 Bookshelf.MoreMenu.SearchOptions=Search options
 Bookshelf.MoreMenu.Subfolder=Load subfolders at the current location
+Bookshelf.MultiSelect.ToolTip=Multi-select mode
 Bookshelf.Sync.ToolTip=Move to current book location
 BookshelfConfig.DefaultFolderOrder=Standard default order
 BookshelfConfig.ExcludePattern=Filename pattern to exclude from display
