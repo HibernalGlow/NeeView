@@ -45,13 +45,43 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="状态：" Margin="0,2"/>
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CurrentImageStatusText}" 
+                        <!-- 文件名 -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="文件：" Margin="0,2" VerticalAlignment="Top"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CurrentImagePath}" 
+                                  Margin="5,2" TextWrapping="Wrap" ToolTip="{Binding CurrentImageFullPath}"/>
+
+                        <!-- 原图分辨率 -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="原图：" Margin="0,2"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding CurrentImageResolution}" 
+                                  Margin="5,2"/>
+
+                        <!-- 超分后分辨率 (仅在已超分时显示) -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="超分后：" Margin="0,2"
+                                  Visibility="{Binding SuperResolutionResolution, Converter={StaticResource CountToVisibilityConverter}}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SuperResolutionResolution}" 
+                                  Margin="5,2" FontWeight="Bold" Foreground="Green"
+                                  Visibility="{Binding SuperResolutionResolution, Converter={StaticResource CountToVisibilityConverter}}"/>
+
+                        <!-- 超分图片路径 -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="缓存：" Margin="0,2"
+                                  Visibility="{Binding SuperResolutionImagePath, Converter={StaticResource CountToVisibilityConverter}}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SuperResolutionImagePath}" 
+                                  Margin="5,2" FontSize="10" Foreground="Gray"
+                                  Visibility="{Binding SuperResolutionImagePath, Converter={StaticResource CountToVisibilityConverter}}"/>
+
+                        <!-- 状态 -->
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="状态：" Margin="0,2"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding CurrentImageStatusText}" 
                                   Margin="5,2" FontWeight="Bold"/>
 
-                        <CheckBox Grid.Row="1" Grid.ColumnSpan="2"
+                        <!-- 超分切换 -->
+                        <CheckBox Grid.Row="5" Grid.ColumnSpan="2"
                                  Content="当前图片启用超分 (切换显示)" 
                                  IsChecked="{Binding EnableCurrentImageSuperResolution}"
                                  Margin="0,5"

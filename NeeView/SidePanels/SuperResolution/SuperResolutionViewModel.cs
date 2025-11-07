@@ -16,6 +16,9 @@ namespace NeeView.SuperResolution
     {
         private readonly SuperResolutionConfig _config;
         private readonly ISuperResolutionService _service;
+        
+        // 🎯 当前图片强制禁用超分的标记 (用于"取消超分"场景)
+        private static string? _currentImageNoSuperResolution = null;
 
         public SuperResolutionViewModel(SuperResolutionConfig config)
         {
@@ -48,6 +51,13 @@ namespace NeeView.SuperResolution
             else if (e.PropertyName == nameof(SuperResolutionConfig.IsEnabled))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+                
+                // 🎯 全局开关关闭时,自动禁用当前图片超分
+                if (!_config.IsEnabled && EnableCurrentImageSuperResolution)
+                {
+                    EnableCurrentImageSuperResolution = false;
+                    ToastService.Current.Show(new Toast("🔄 已自动切换到原图", "全局超分已禁用", ToastIcon.Information));
+                }
             }
         }
 
@@ -69,7 +79,8 @@ namespace NeeView.SuperResolution
                 var book = BookOperation.Current.Book;
                 if (book == null || book.CurrentPage == null)
                 {
-                    CurrentImagePath = "";
+                    CurrentImageFullPath = "";
+                    CurrentImageResolution = "";
                     CurrentImageStatus = SuperResolutionImageStatus.None;
                     EnableCurrentImageSuperResolution = false;
                     return;
@@ -79,27 +90,71 @@ namespace NeeView.SuperResolution
                 var entry = page.ArchiveEntry;
                 if (entry != null)
                 {
-                    CurrentImagePath = entry.SystemPath;
+                    CurrentImageFullPath = entry.SystemPath;
                     
-                    // 检查缓存状态
+                    // 更新分辨率信息
+                    if (page.Size.Width > 0 && page.Size.Height > 0)
+                    {
+                        CurrentImageResolution = $"{(int)page.Size.Width}x{(int)page.Size.Height}";
+                    }
+                    else
+                    {
+                        CurrentImageResolution = "";
+                    }
+                    
+                    // 🎯 检查缓存状态并获取真实超分信息
                     var cache = SuperResolutionImageCache.Current;
-                    var cacheItem = cache.Get(CurrentImagePath);
+                    var cacheItem = cache.Get(CurrentImageFullPath);
                     
                     if (cacheItem != null)
                     {
                         CurrentImageStatus = cacheItem.Status;
-                        // 如果有超分结果且自动超分开启，自动勾选
-                        if (cacheItem.Status == SuperResolutionImageStatus.Completed && _config.AutoApplyOnView)
+                        
+                        // 🔥 获取真实超分分辨率和路径
+                        if (cacheItem.Status == SuperResolutionImageStatus.Completed)
                         {
-                            EnableCurrentImageSuperResolution = true;
+                            if (cacheItem.SuperResolutionWidth > 0 && cacheItem.SuperResolutionHeight > 0)
+                            {
+                                SuperResolutionResolution = $"{cacheItem.SuperResolutionWidth}x{cacheItem.SuperResolutionHeight}";
+                            }
+                            else
+                            {
+                                SuperResolutionResolution = "未知";
+                            }
+                            
+                            // 超分图片路径(如果有保存)
+                            SuperResolutionImagePath = cacheItem.SuperResolutionData != null 
+                                ? $"内存缓存 ({cacheItem.SuperResolutionData.Length / 1024.0:F1} KB)" 
+                                : "";
+                            
+                            SuperResolutionLogger.Info($"[缓存信息] {CurrentImageFullPath}: 原图{cacheItem.OriginalWidth}x{cacheItem.OriginalHeight} → 超分{cacheItem.SuperResolutionWidth}x{cacheItem.SuperResolutionHeight}");
+                            
+                            // 🎯 只在全局开关和自动超分都启用时才自动勾选
+                            if (_config.IsEnabled && _config.AutoApplyOnView)
+                            {
+                                EnableCurrentImageSuperResolution = true;
+                            }
+                            else
+                            {
+                                // 全局开关关闭或自动超分关闭时,不自动勾选
+                                EnableCurrentImageSuperResolution = false;
+                            }
+                        }
+                        else
+                        {
+                            SuperResolutionResolution = "";
+                            SuperResolutionImagePath = "";
+                            EnableCurrentImageSuperResolution = false;
                         }
                     }
                     else
                     {
                         CurrentImageStatus = SuperResolutionImageStatus.None;
+                        SuperResolutionResolution = "";
+                        SuperResolutionImagePath = "";
                         
                         // 检查是否符合自动超分条件
-                        if (_config.AutoApplyOnView && ShouldAutoEnableSuperResolution(page, entry))
+                        if (_config.IsEnabled && _config.AutoApplyOnView && ShouldAutoEnableSuperResolution(page, entry))
                         {
                             EnableCurrentImageSuperResolution = true;
                         }
@@ -111,7 +166,8 @@ namespace NeeView.SuperResolution
                 }
                 else
                 {
-                    CurrentImagePath = "";
+                    CurrentImageFullPath = "";
+                    CurrentImageResolution = "";
                     CurrentImageStatus = SuperResolutionImageStatus.None;
                     EnableCurrentImageSuperResolution = false;
                 }
@@ -172,6 +228,14 @@ namespace NeeView.SuperResolution
                 SuperResolutionLogger.Error($"检查自动超分条件失败: {ex.Message}", ex);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// 🎯 检查当前图片是否应该跳过自动超分 (静态方法,供 BitmapPictureSource 调用)
+        /// </summary>
+        public static bool ShouldSkipAutoSuperResolution(string imagePath)
+        {
+            return _currentImageNoSuperResolution == imagePath;
         }
 
         #region Properties
@@ -390,10 +454,88 @@ namespace NeeView.SuperResolution
         /// 当前图片路径
         /// </summary>
         private string _currentImagePath = "";
+        private string _currentImageFullPath = "";  // 内部保存完整路径
+        
         public string CurrentImagePath
         {
-            get => _currentImagePath;
-            set => SetProperty(ref _currentImagePath, value);
+            get
+            {
+                // UI显示文件名,内部使用完整路径
+                if (string.IsNullOrEmpty(_currentImagePath))
+                    return "无图片";
+                return System.IO.Path.GetFileName(_currentImagePath) ?? "无图片";
+            }
+        }
+
+        /// <summary>
+        /// 当前图片完整路径 (内部使用)
+        /// </summary>
+        public string CurrentImageFullPath
+        {
+            get => _currentImageFullPath;
+            private set
+            {
+                if (SetProperty(ref _currentImageFullPath, value))
+                {
+                    _currentImagePath = value;
+                    RaisePropertyChanged(nameof(CurrentImagePath));
+                    RaisePropertyChanged(nameof(CurrentImageInfo));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 当前图片分辨率信息 (例如: "1920x1080")
+        /// </summary>
+        private string _currentImageResolution = "";
+        public string CurrentImageResolution
+        {
+            get => _currentImageResolution;
+            set
+            {
+                if (SetProperty(ref _currentImageResolution, value))
+                {
+                    RaisePropertyChanged(nameof(CurrentImageInfo));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 超分后的真实分辨率 (来自缓存)
+        /// </summary>
+        private string _superResolutionResolution = "";
+        public string SuperResolutionResolution
+        {
+            get => _superResolutionResolution;
+            set => SetProperty(ref _superResolutionResolution, value);
+        }
+
+        /// <summary>
+        /// 超分后的图片路径 (临时文件)
+        /// </summary>
+        private string _superResolutionImagePath = "";
+        public string SuperResolutionImagePath
+        {
+            get => _superResolutionImagePath;
+            set => SetProperty(ref _superResolutionImagePath, value);
+        }
+
+        /// <summary>
+        /// 当前图片详细信息 (路径 + 分辨率)
+        /// </summary>
+        public string CurrentImageInfo
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_currentImagePath))
+                    return "无图片";
+                
+                var fileName = System.IO.Path.GetFileName(_currentImagePath);
+                if (string.IsNullOrEmpty(CurrentImageResolution))
+                    return fileName;
+                
+                return $"{fileName} - {CurrentImageResolution}";
+            }
         }
 
         #endregion
@@ -793,15 +935,12 @@ namespace NeeView.SuperResolution
         /// </summary>
         private async Task HandleCurrentImageToggleAsync()
         {
-            if (string.IsNullOrEmpty(CurrentImagePath))
+            if (string.IsNullOrEmpty(CurrentImageFullPath))
             {
                 SuperResolutionLogger.Warning("当前没有打开的图片");
                 return;
             }
 
-            // 🎯 最简单方案:利用 AutoApplyOnView + Unload/ReLoad 机制
-            // 关键优化:只在启用超分时才临时修改配置,避免反复切换
-            
             try
             {
                 var book = BookOperation.Current.Book;
@@ -813,45 +952,62 @@ namespace NeeView.SuperResolution
 
                 if (EnableCurrentImageSuperResolution)
                 {
-                    // ✅ 启用超分:临时开启 AutoApplyOnView
+                    // ✅ 启用超分
+                    if (!_config.IsEnabled)
+                    {
+                        ToastService.Current.Show(new Toast("⚠️ 请先启用超分辨率功能", null, ToastIcon.Warning));
+                        EnableCurrentImageSuperResolution = false;
+                        return;
+                    }
+
+                    // 🎯 清除禁用标记,允许超分
+                    _currentImageNoSuperResolution = null;
+                    
                     CurrentImageStatus = SuperResolutionImageStatus.Processing;
                     StatusMessage = "正在超分当前图片...";
                     ToastService.Current.Show(new Toast("🔄 正在处理超分...", null, ToastIcon.Information));
 
-                    var originalAutoApply = _config.AutoApplyOnView;
-                    _config.AutoApplyOnView = true; // 强制启用自动超分
-                    
-                    try
+                    // 卸载并重新加载 (会触发 BitmapPictureSource 的自动超分逻辑)
+                    await App.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        // 卸载并重新加载
-                        await App.Current.Dispatcher.InvokeAsync(() =>
-                        {
-                            book.CurrentPage.Content.Unload();
-                        });
-                        
-                        await Task.Delay(100);
-                        
-                        await App.Current.Dispatcher.InvokeAsync(() =>
-                        {
-                            BookOperation.Current.BookControl.ReLoad();
-                        });
-                        
-                        // 等待加载完成
-                        await Task.Delay(500);
+                        book.CurrentPage.Content.Unload();
+                    });
+                    
+                    await Task.Delay(100);
+                    
+                    await App.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        BookOperation.Current.BookControl.ReLoad();
+                    });
+                    
+                    // 等待加载完成
+                    await Task.Delay(500);
+                    
+                    // 🎯 从实际加载的图片获取尺寸
+                    var currentPage = BookOperation.Current.Book?.CurrentPage;
+                    if (currentPage != null)
+                    {
+                        var width = (int)currentPage.Size.Width;
+                        var height = (int)currentPage.Size.Height;
+                        CurrentImageResolution = $"{width}x{height}";
                         
                         CurrentImageStatus = SuperResolutionImageStatus.Completed;
-                        StatusMessage = "超分已应用";
-                        ToastService.Current.Show(new Toast("✅ 超分完成", "图片已更新", ToastIcon.Information));
+                        StatusMessage = $"超分完成: {width}x{height}";
+                        ToastService.Current.Show(new Toast("✅ 超分完成", $"{System.IO.Path.GetFileName(CurrentImageFullPath)}\n{width}x{height}", ToastIcon.Information));
                     }
-                    finally
+                    else
                     {
-                        // 立即恢复配置,因为加载已经完成
-                        _config.AutoApplyOnView = originalAutoApply;
+                        CurrentImageStatus = SuperResolutionImageStatus.Completed;
+                        StatusMessage = "超分已应用";
+                        ToastService.Current.Show(new Toast("✅ 超分完成", null, ToastIcon.Information));
                     }
                 }
                 else
                 {
-                    // 🔄 切换回原图:直接重新加载(不修改配置)
+                    // 🔄 切换回原图
+                    // 🎯 设置禁用标记,阻止自动超分
+                    _currentImageNoSuperResolution = CurrentImageFullPath;
+                    
                     CurrentImageStatus = SuperResolutionImageStatus.None;
                     StatusMessage = "切换到原图";
                     
@@ -869,7 +1025,21 @@ namespace NeeView.SuperResolution
                     
                     await Task.Delay(200);
                     
-                    ToastService.Current.Show(new Toast("🔄 已切换到原图", null, ToastIcon.Information));
+                    // 🎯 获取原图尺寸
+                    var currentPage = BookOperation.Current.Book?.CurrentPage;
+                    if (currentPage != null)
+                    {
+                        var width = (int)currentPage.Size.Width;
+                        var height = (int)currentPage.Size.Height;
+                        CurrentImageResolution = $"{width}x{height}";
+                        
+                        StatusMessage = $"原图: {width}x{height}";
+                        ToastService.Current.Show(new Toast("🔄 已切换到原图", $"{System.IO.Path.GetFileName(CurrentImageFullPath)}\n{width}x{height}", ToastIcon.Information));
+                    }
+                    else
+                    {
+                        ToastService.Current.Show(new Toast("🔄 已切换到原图", null, ToastIcon.Information));
+                    }
                 }
             }
             catch (Exception ex)
@@ -879,6 +1049,7 @@ namespace NeeView.SuperResolution
                 StatusMessage = $"错误: {ex.Message}";
                 ToastService.Current.Show(new Toast("❌ 切换超分失败", ex.Message, ToastIcon.Error));
                 EnableCurrentImageSuperResolution = false;
+                _currentImageNoSuperResolution = null;
             }
         }
 

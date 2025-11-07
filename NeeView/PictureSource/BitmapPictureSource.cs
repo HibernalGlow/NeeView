@@ -67,6 +67,14 @@ namespace NeeView
             {
                 long fileSize = ArchiveEntry?.Length ?? -1;
                 var entryName = ArchiveEntry?.EntryName ?? "Unknown";
+                var imagePath = ArchiveEntry?.SystemPath ?? "";
+
+                // 🎯 检查是否被用户手动禁用超分
+                if (!string.IsNullOrEmpty(imagePath) && SuperResolutionViewModel.ShouldSkipAutoSuperResolution(imagePath))
+                {
+                    SuperResolutionLogger.Info($"[跳过超分] {entryName} (用户手动禁用)");
+                    return bitmapSource;
+                }
 
                 if (_srHelper.ShouldProcess(bitmapSource, config, fileSize))
                 {
@@ -77,6 +85,21 @@ namespace NeeView
                         if (srResult != null)
                         {
                             SuperResolutionLogger.Info($"[自动超分成功] {entryName}: {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight} → {srResult.PixelWidth}x{srResult.PixelHeight}");
+                            
+                            // 🎯 记录超分信息到缓存
+                            if (!string.IsNullOrEmpty(imagePath))
+                            {
+                                var cache = SuperResolutionImageCache.Current;
+                                cache.Update(imagePath, item =>
+                                {
+                                    item.OriginalWidth = bitmapSource.PixelWidth;
+                                    item.OriginalHeight = bitmapSource.PixelHeight;
+                                    item.SuperResolutionWidth = srResult.PixelWidth;
+                                    item.SuperResolutionHeight = srResult.PixelHeight;
+                                    item.Status = SuperResolutionImageStatus.Completed;
+                                });
+                            }
+                            
                             return srResult;
                         }
                         else
