@@ -62,33 +62,39 @@ namespace NeeView
             PictureInfo?.SetPixelInfo(bitmapSource);
 
             // 🔥 自动超分处理
+            // 🎯 重构:使用严格的状态管理系统
             var config = SuperResolutionConfig.Current;
-            if (config != null && config.IsEnabled && config.AutoApplyOnView)
+            if (config != null && config.IsEnabled)
             {
                 long fileSize = ArchiveEntry?.Length ?? -1;
                 var entryName = ArchiveEntry?.EntryName ?? "Unknown";
                 var imagePath = ArchiveEntry?.SystemPath ?? "";
 
-                // 🎯 检查是否被用户手动禁用超分
-                if (!string.IsNullOrEmpty(imagePath) && SuperResolutionViewModel.ShouldSkipAutoSuperResolution(imagePath))
+                if (!string.IsNullOrEmpty(imagePath))
                 {
-                    SuperResolutionLogger.Info($"[跳过超分] {entryName} (用户手动禁用)");
-                    return bitmapSource;
-                }
+                    // 🎯 步骤 1: 查询数据库用户偏好
+                    var shouldSkip = SuperResolutionStateManager.Current.ShouldSkipSuperResolution(imagePath, out var userPreference);
 
-                if (_srHelper.ShouldProcess(bitmapSource, config, fileSize))
-                {
-                    try
+                    if (shouldSkip)
                     {
-                        SuperResolutionLogger.Info($"[自动超分] {entryName} ({fileSize / 1024.0:F2} KB, {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight})");
-                        var srResult = await _srHelper.ProcessBitmapSourceAsync(bitmapSource, config, token);
-                        if (srResult != null)
+                        // 用户明确禁用
+                        SuperResolutionLogger.Info($"[跳过超分] {entryName} (用户已禁用)");
+                        return bitmapSource;
+                    }
+                    else if (userPreference == SuperResolutionUserPreference.Enabled)
+                    {
+                        // 🎯 用户明确启用 - 强制超分,忽略其他条件
+                        try
                         {
-                            SuperResolutionLogger.Info($"[自动超分成功] {entryName}: {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight} → {srResult.PixelWidth}x{srResult.PixelHeight}");
+                            SuperResolutionLogger.Info($"[强制超分] {entryName} (用户已启用)");
+                            SuperResolutionStateManager.Current.SetActualStatus(imagePath, SuperResolutionActualStatus.Processing, "ForcedByUser");
                             
-                            // 🎯 记录超分信息到缓存
-                            if (!string.IsNullOrEmpty(imagePath))
+                            var srResult = await _srHelper.ProcessBitmapSourceAsync(bitmapSource, config, token);
+                            if (srResult != null)
                             {
+                                SuperResolutionLogger.Info($"[强制超分成功] {entryName}: {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight} → {srResult.PixelWidth}x{srResult.PixelHeight}");
+                                
+                                // 记录到缓存和数据库
                                 var cache = SuperResolutionImageCache.Current;
                                 cache.Update(imagePath, item =>
                                 {
@@ -98,18 +104,93 @@ namespace NeeView
                                     item.SuperResolutionHeight = srResult.PixelHeight;
                                     item.Status = SuperResolutionImageStatus.Completed;
                                 });
+                                
+                                var record = new SuperResolutionStateRecord
+                                {
+                                    ImagePath = imagePath,
+                                    UserPreference = SuperResolutionUserPreference.Enabled,
+                                    ActualStatus = SuperResolutionActualStatus.Completed,
+                                    OriginalWidth = bitmapSource.PixelWidth,
+                                    OriginalHeight = bitmapSource.PixelHeight,
+                                    SuperResolutionWidth = srResult.PixelWidth,
+                                    SuperResolutionHeight = srResult.PixelHeight
+                                };
+                                SuperResolutionStateManager.Current.SaveRecord(record, "ForcedComplete");
+                                
+                                return srResult;
                             }
-                            
-                            return srResult;
+                            else
+                            {
+                                SuperResolutionLogger.Warning($"[强制超分失败] {entryName}, 使用原图");
+                                SuperResolutionStateManager.Current.SetActualStatus(imagePath, SuperResolutionActualStatus.Failed, "ForcedFailed");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            SuperResolutionLogger.Error($"[强制超分异常] {entryName}: {ex.Message}", ex);
+                            SuperResolutionStateManager.Current.SetActualStatus(imagePath, SuperResolutionActualStatus.Failed, "ForcedException");
+                        }
+                    }
+                    else if (userPreference == SuperResolutionUserPreference.Auto && config.AutoApplyOnView)
+                    {
+                        // 🎯 自动模式 - 检查条件
+                        if (_srHelper.ShouldProcess(bitmapSource, config, fileSize))
+                        {
+                            try
+                            {
+                                SuperResolutionLogger.Info($"[自动超分] {entryName} ({fileSize / 1024.0:F2} KB, {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight})");
+                                SuperResolutionStateManager.Current.SetActualStatus(imagePath, SuperResolutionActualStatus.Processing, "AutoByCondition");
+                                
+                                var srResult = await _srHelper.ProcessBitmapSourceAsync(bitmapSource, config, token);
+                                if (srResult != null)
+                                {
+                                    SuperResolutionLogger.Info($"[自动超分成功] {entryName}: {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight} → {srResult.PixelWidth}x{srResult.PixelHeight}");
+                                    
+                                    // 记录到缓存和数据库
+                                    var cache = SuperResolutionImageCache.Current;
+                                    cache.Update(imagePath, item =>
+                                    {
+                                        item.OriginalWidth = bitmapSource.PixelWidth;
+                                        item.OriginalHeight = bitmapSource.PixelHeight;
+                                        item.SuperResolutionWidth = srResult.PixelWidth;
+                                        item.SuperResolutionHeight = srResult.PixelHeight;
+                                        item.Status = SuperResolutionImageStatus.Completed;
+                                    });
+                                    
+                                    var record = new SuperResolutionStateRecord
+                                    {
+                                        ImagePath = imagePath,
+                                        UserPreference = SuperResolutionUserPreference.Auto,
+                                        ActualStatus = SuperResolutionActualStatus.Completed,
+                                        OriginalWidth = bitmapSource.PixelWidth,
+                                        OriginalHeight = bitmapSource.PixelHeight,
+                                        SuperResolutionWidth = srResult.PixelWidth,
+                                        SuperResolutionHeight = srResult.PixelHeight
+                                    };
+                                    SuperResolutionStateManager.Current.SaveRecord(record, "AutoComplete");
+                                    
+                                    return srResult;
+                                }
+                                else
+                                {
+                                    SuperResolutionLogger.Warning($"[自动超分失败] {entryName}, 使用原图");
+                                    SuperResolutionStateManager.Current.SetActualStatus(imagePath, SuperResolutionActualStatus.Failed, "AutoFailed");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                SuperResolutionLogger.Error($"[自动超分异常] {entryName}: {ex.Message}", ex);
+                                SuperResolutionStateManager.Current.SetActualStatus(imagePath, SuperResolutionActualStatus.Failed, "AutoException");
+                            }
                         }
                         else
                         {
-                            SuperResolutionLogger.Warning($"[自动超分失败] {entryName}, 使用原图");
+                            SuperResolutionLogger.Info($"[跳过超分] {entryName} (不符合自动条件)");
                         }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        SuperResolutionLogger.Error($"[自动超分异常] {entryName}: {ex.Message}", ex);
+                        SuperResolutionLogger.Info($"[跳过超分] {entryName} (Auto模式但AutoApplyOnView未启用)");
                     }
                 }
             }

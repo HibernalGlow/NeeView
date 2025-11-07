@@ -20,10 +20,16 @@ namespace NeeView.SuperResolution
         // 🎯 当前图片强制禁用超分的标记 (用于"取消超分"场景)
         private static string? _currentImageNoSuperResolution = null;
 
+        // 🎯 防止递归更新的标志
+        private bool _isUpdatingFromDatabase = false;
+
         public SuperResolutionViewModel(SuperResolutionConfig config)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _service = SuperResolutionService.Current;
+
+            // 🎯 初始化状态数据库
+            InitializeStateDatabase();
 
             // 初始化命令
             ProcessCurrentImageCommand = new RelayCommand(ProcessCurrentImage, CanProcessCurrentImage);
@@ -39,6 +45,25 @@ namespace NeeView.SuperResolution
 
             // 初始化服务
             _ = InitializeServiceAsync();
+        }
+
+        /// <summary>
+        /// 初始化状态数据库
+        /// </summary>
+        private void InitializeStateDatabase()
+        {
+            try
+            {
+                var dbPath = System.IO.Path.Combine(
+                    Environment.LocalApplicationDataPath, 
+                    "SuperResolutionState.db");
+                SuperResolutionStateManager.Current.Initialize(dbPath);
+                SuperResolutionLogger.Info($"[StateDB] 数据库已初始化: {dbPath}");
+            }
+            catch (Exception ex)
+            {
+                SuperResolutionLogger.Error($"[StateDB] 初始化失败: {ex.Message}", ex);
+            }
         }
 
         private void OnConfigPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -71,6 +96,7 @@ namespace NeeView.SuperResolution
 
         /// <summary>
         /// 更新当前图片信息
+        /// 🎯 重构后:只更新显示信息,不修改用户偏好(EnableCurrentImageSuperResolution)
         /// </summary>
         private void UpdateCurrentImageInfo()
         {
@@ -82,7 +108,20 @@ namespace NeeView.SuperResolution
                     CurrentImageFullPath = "";
                     CurrentImageResolution = "";
                     CurrentImageStatus = SuperResolutionImageStatus.None;
-                    EnableCurrentImageSuperResolution = false;
+                    SuperResolutionResolution = "";
+                    SuperResolutionImagePath = "";
+                    
+                    // 🎯 用户偏好独立管理,从数据库读取
+                    _isUpdatingFromDatabase = true;
+                    try
+                    {
+                        var userPref = SuperResolutionStateManager.Current.GetUserPreference("");
+                        EnableCurrentImageSuperResolution = (userPref == SuperResolutionUserPreference.Enabled);
+                    }
+                    finally
+                    {
+                        _isUpdatingFromDatabase = false;
+                    }
                     return;
                 }
 
@@ -128,23 +167,11 @@ namespace NeeView.SuperResolution
                                 : "";
                             
                             SuperResolutionLogger.Info($"[缓存信息] {CurrentImageFullPath}: 原图{cacheItem.OriginalWidth}x{cacheItem.OriginalHeight} → 超分{cacheItem.SuperResolutionWidth}x{cacheItem.SuperResolutionHeight}");
-                            
-                            // 🎯 只在全局开关和自动超分都启用时才自动勾选
-                            if (_config.IsEnabled && _config.AutoApplyOnView)
-                            {
-                                EnableCurrentImageSuperResolution = true;
-                            }
-                            else
-                            {
-                                // 全局开关关闭或自动超分关闭时,不自动勾选
-                                EnableCurrentImageSuperResolution = false;
-                            }
                         }
                         else
                         {
                             SuperResolutionResolution = "";
                             SuperResolutionImagePath = "";
-                            EnableCurrentImageSuperResolution = false;
                         }
                     }
                     else
@@ -152,16 +179,42 @@ namespace NeeView.SuperResolution
                         CurrentImageStatus = SuperResolutionImageStatus.None;
                         SuperResolutionResolution = "";
                         SuperResolutionImagePath = "";
-                        
-                        // 检查是否符合自动超分条件
-                        if (_config.IsEnabled && _config.AutoApplyOnView && ShouldAutoEnableSuperResolution(page, entry))
+                    }
+
+                    // 🎯 从数据库读取用户偏好,更新UI状态
+                    _isUpdatingFromDatabase = true;
+                    try
+                    {
+                        var userPreference = SuperResolutionStateManager.Current.GetUserPreference(CurrentImageFullPath);
+                        switch (userPreference)
                         {
-                            EnableCurrentImageSuperResolution = true;
+                            case SuperResolutionUserPreference.Enabled:
+                                EnableCurrentImageSuperResolution = true;
+                                break;
+                            case SuperResolutionUserPreference.Disabled:
+                                EnableCurrentImageSuperResolution = false;
+                                break;
+                            case SuperResolutionUserPreference.Auto:
+                                // Auto 模式:勾选框显示为未勾选,表示"跟随自动条件"
+                                // 如果已有缓存且全局开关+自动超分都启用,则勾选
+                                if (cacheItem != null && cacheItem.Status == SuperResolutionImageStatus.Completed)
+                                {
+                                    EnableCurrentImageSuperResolution = (_config.IsEnabled && _config.AutoApplyOnView);
+                                }
+                                else if (ShouldAutoEnableSuperResolution(page, entry))
+                                {
+                                    EnableCurrentImageSuperResolution = (_config.IsEnabled && _config.AutoApplyOnView);
+                                }
+                                else
+                                {
+                                    EnableCurrentImageSuperResolution = false;
+                                }
+                                break;
                         }
-                        else
-                        {
-                            EnableCurrentImageSuperResolution = false;
-                        }
+                    }
+                    finally
+                    {
+                        _isUpdatingFromDatabase = false;
                     }
                 }
                 else
@@ -169,7 +222,18 @@ namespace NeeView.SuperResolution
                     CurrentImageFullPath = "";
                     CurrentImageResolution = "";
                     CurrentImageStatus = SuperResolutionImageStatus.None;
-                    EnableCurrentImageSuperResolution = false;
+                    SuperResolutionResolution = "";
+                    SuperResolutionImagePath = "";
+                    
+                    _isUpdatingFromDatabase = true;
+                    try
+                    {
+                        EnableCurrentImageSuperResolution = false;
+                    }
+                    finally
+                    {
+                        _isUpdatingFromDatabase = false;
+                    }
                 }
             }
             catch (Exception ex)
@@ -402,6 +466,7 @@ namespace NeeView.SuperResolution
 
         /// <summary>
         /// 当前图片启用超分 (切换显示)
+        /// 🎯 重构后:用户修改时保存到数据库,从数据库读取时不触发 HandleCurrentImageToggleAsync
         /// </summary>
         private bool _enableCurrentImageSuperResolution;
         public bool EnableCurrentImageSuperResolution
@@ -411,6 +476,20 @@ namespace NeeView.SuperResolution
             {
                 if (SetProperty(ref _enableCurrentImageSuperResolution, value))
                 {
+                    // 🎯 如果是从数据库更新来的,不触发切换逻辑(防止循环)
+                    if (_isUpdatingFromDatabase)
+                    {
+                        return;
+                    }
+
+                    // 🎯 用户手动修改,保存到数据库
+                    if (!string.IsNullOrEmpty(CurrentImageFullPath))
+                    {
+                        var preference = value ? SuperResolutionUserPreference.Enabled : SuperResolutionUserPreference.Disabled;
+                        SuperResolutionStateManager.Current.SetUserPreference(CurrentImageFullPath, preference, "UserToggle");
+                    }
+
+                    // 触发切换逻辑
                     _ = HandleCurrentImageToggleAsync();
                 }
             }
