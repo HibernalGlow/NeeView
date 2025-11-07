@@ -26,11 +26,17 @@ namespace NeeView
         {
             Debug.Assert(_current is null, "Already set.");
             _current = config;
+            
+            // 🔥 同步 SuperResolutionConfig 静态实例
+            SuperResolutionConfig.Current = config.SuperResolution;
         }
 
         public Config()
         {
             View.SetBookSettingSource(BookSetting);
+            
+            // 🔥 确保 SuperResolutionConfig.Current 指向当前实例
+            SuperResolutionConfig.Current = SuperResolution;
         }
 
         public SystemConfig System { get; set; } = new SystemConfig();

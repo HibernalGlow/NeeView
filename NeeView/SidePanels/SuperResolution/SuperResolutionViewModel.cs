@@ -48,6 +48,11 @@ namespace NeeView.SuperResolution
             else if (e.PropertyName == nameof(SuperResolutionConfig.IsEnabled))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+                SuperResolutionLogger.Info($"全局开关已{(_config.IsEnabled ? "启用" : "禁用")}");
+            }
+            else if (e.PropertyName == nameof(SuperResolutionConfig.Model))
+            {
+                SuperResolutionLogger.Info($"模型已更改为: {_config.Model}");
             }
         }
 
