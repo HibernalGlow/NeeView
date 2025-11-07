@@ -270,7 +270,7 @@ namespace NeeView.SuperResolution
         }
 
         /// <summary>
-        /// 当前图片启用超分（类似 picacg curWaifu2x）
+        /// 当前图片启用超分 (切换显示)
         /// </summary>
         private bool _enableCurrentImageSuperResolution;
         public bool EnableCurrentImageSuperResolution
@@ -280,7 +280,7 @@ namespace NeeView.SuperResolution
             {
                 if (SetProperty(ref _enableCurrentImageSuperResolution, value))
                 {
-                    _ = HandleCurrentImageToggleAsync(value);
+                    _ = HandleCurrentImageToggleAsync();
                 }
             }
         }
@@ -724,7 +724,7 @@ namespace NeeView.SuperResolution
         /// <summary>
         /// 处理当前图片超分切换
         /// </summary>
-        private async Task HandleCurrentImageToggleAsync(bool enable)
+        private async Task HandleCurrentImageToggleAsync()
         {
             if (string.IsNullOrEmpty(CurrentImagePath))
             {
@@ -732,46 +732,37 @@ namespace NeeView.SuperResolution
                 return;
             }
 
-            var cache = SuperResolutionImageCache.Current;
-            var cacheItem = cache.Get(CurrentImagePath);
+            // 🔥 新方案:通过重新加载当前页来应用/取消超分
+            // 1. 临时修改 AutoApplyOnView 配置
+            var originalAutoApply = _config.AutoApplyOnView;
+            _config.AutoApplyOnView = EnableCurrentImageSuperResolution;
 
-            if (enable)
+            try
             {
-                // 启用超分：显示超分图
-                if (cacheItem != null && cacheItem.Status == SuperResolutionImageStatus.Completed && cacheItem.SuperResolutionData != null)
+                // 2. 重新加载当前页面
+                var book = BookOperation.Current.Book;
+                if (book != null)
                 {
-                    // 已经有超分结果，直接显示
-                    SuperResolutionLogger.Info($"从缓存加载超分图: {CurrentImagePath}");
-                    await ShowSuperResolutionImageAsync(cacheItem.SuperResolutionData);
-                    CurrentImageStatus = SuperResolutionImageStatus.Completed;
-                }
-                else if (cacheItem != null && cacheItem.Status == SuperResolutionImageStatus.Processing)
-                {
-                    // 正在处理中
-                    SuperResolutionLogger.Info($"超分处理中: {CurrentImagePath}");
-                    CurrentImageStatus = SuperResolutionImageStatus.Processing;
-                }
-                else
-                {
-                    // 需要进行超分处理
-                    await ProcessCurrentImageForToggleAsync();
+                    var currentPage = book.CurrentPage;
+                    if (currentPage != null)
+                    {
+                        SuperResolutionLogger.Info($"重新加载当前页: {CurrentImagePath}, 超分={EnableCurrentImageSuperResolution}");
+                        
+                        // 强制重新加载页面内容
+                        currentPage.Content.Unload();
+                        await Task.Delay(100); // 等待卸载完成
+                        
+                        // 触发重新加载
+                        var entry = currentPage.ArchiveEntry;
+                        BookHub.Current.RequestLoad(this, entry.SystemPath, entry.EntryName, BookLoadOption.ReLoad, false);
+                    }
                 }
             }
-            else
+            finally
             {
-                // 取消超分：显示原图
-                if (cacheItem != null && cacheItem.OriginalData != null)
-                {
-                    SuperResolutionLogger.Info($"显示原图: {CurrentImagePath}");
-                    await ShowOriginalImageAsync(cacheItem.OriginalData);
-                }
-                else
-                {
-                    SuperResolutionLogger.Info($"重新加载原图: {CurrentImagePath}");
-                    // 重新加载当前图片
-                    BookHub.Current.RequestLoad(this, CurrentImagePath, null, BookLoadOption.None, true);
-                }
-                CurrentImageStatus = SuperResolutionImageStatus.None;
+                // 3. 恢复原始配置
+                await Task.Delay(500); // 等待加载完成
+                _config.AutoApplyOnView = originalAutoApply;
             }
         }
 
