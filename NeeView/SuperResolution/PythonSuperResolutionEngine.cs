@@ -362,8 +362,14 @@ namespace NeeView.SuperResolution
 
             return await Task.Run(() =>
             {
+                // 检查取消请求
+                cancellationToken.ThrowIfCancellationRequested();
+
                 lock (_pythonLock)
                 {
+                    // 再次检查取消请求 (防止在等待锁时被取消)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     try
                     {
                         using (Py.GIL())
@@ -438,6 +444,9 @@ namespace NeeView.SuperResolution
                             int pollCount = 0;
                             for (int i = 0; i < 300; i++)
                             {
+                                // 每次轮询前检查取消请求
+                                cancellationToken.ThrowIfCancellationRequested();
+
                                 result = _srModule.load(0);  // 参数 0 表示获取任何完成的任务
                                 pollCount++;
                                 
@@ -556,8 +565,14 @@ namespace NeeView.SuperResolution
 
             return await Task.Run(() =>
             {
+                // 检查取消请求
+                cancellationToken.ThrowIfCancellationRequested();
+
                 lock (_pythonLock)
                 {
+                    // 再次检查取消请求 (防止在等待锁时被取消)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     try
                     {
                         using (Py.GIL())

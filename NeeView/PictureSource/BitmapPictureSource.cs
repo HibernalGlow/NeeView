@@ -64,6 +64,10 @@ namespace NeeView
             // 🔥 自动超分处理
             // 🎯 重构:使用严格的状态管理系统
             var config = SuperResolutionConfig.Current;
+            
+            // 🔥 调试:输出全局开关状态
+            SuperResolutionLogger.Info($"[决策检查] IsEnabled={config?.IsEnabled}, AutoApplyOnView={config?.AutoApplyOnView}");
+            
             if (config != null && config.IsEnabled)
             {
                 long fileSize = ArchiveEntry?.Length ?? -1;
@@ -192,6 +196,18 @@ namespace NeeView
                     {
                         SuperResolutionLogger.Info($"[跳过超分] {entryName} (Auto模式但AutoApplyOnView未启用)");
                     }
+                }
+            }
+            else
+            {
+                // 🔥 全局开关关闭或配置为空
+                if (config == null)
+                {
+                    SuperResolutionLogger.Info($"[跳过超分] Config is null");
+                }
+                else
+                {
+                    SuperResolutionLogger.Info($"[跳过超分] 全局开关已关闭 (IsEnabled={config.IsEnabled})");
                 }
             }
 

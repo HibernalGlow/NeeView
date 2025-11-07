@@ -28,6 +28,9 @@ namespace NeeView.SuperResolution
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _service = SuperResolutionService.Current;
 
+            // 🎯 确保 Current 指向传入的 config 实例
+            SuperResolutionConfig.Current = _config;
+
             // 🎯 初始化状态数据库
             InitializeStateDatabase();
 
