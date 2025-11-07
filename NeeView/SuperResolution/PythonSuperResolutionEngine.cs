@@ -332,7 +332,11 @@ namespace NeeView.SuperResolution
                 }
             }
             
-            SuperResolutionLogger.Info($"模型: {_loadedModel}, 缩放: {scale}x, 降噪: {denoise}, TTA: {tta}");
+            SuperResolutionLogger.Info($"模型: {_loadedModel}, 降噪: {denoise}, TTA: {tta}");
+            
+            // 🔥 从模型名称提取真实的缩放倍数 (忽略用户的ScaleFactor设置)
+            int actualScale = GetScaleFromModel(_loadedModel);
+            SuperResolutionLogger.Info($"实际缩放倍数: {actualScale}x (从模型 {_loadedModel} 提取)");
 
             if (!_isInitialized || _srModule == null)
             {
@@ -376,7 +380,7 @@ namespace NeeView.SuperResolution
                             // taskId 用于匹配返回结果
                             int taskId = System.Environment.TickCount & 0x7FFFFFFF;  // 确保正数
                             
-                            SuperResolutionLogger.Info($"调用 sr_vulkan.add() with taskId={taskId}, modelId={modelId}, scale={scale}...");
+                            SuperResolutionLogger.Info($"调用 sr_vulkan.add() with taskId={taskId}, modelId={modelId}, scale={actualScale}...");
                             
                             // 根据 picacg-qt 的调用方式:
                             // if scale <= 0:
@@ -385,7 +389,7 @@ namespace NeeView.SuperResolution
                             //     sr.add(data, model, taskId, scale, format=mat, tileSize=tileSize)
                             
                             int procId;
-                            if (scale > 0)
+                            if (actualScale > 0)
                             {
                                 // 使用 scale 模式
                                 // 参考 picacg-qt: sr.add(data, model, taskId, scale, format=mat, tileSize=tileSize)
@@ -395,7 +399,7 @@ namespace NeeView.SuperResolution
                                         inputPyBytes,           // data
                                         new PyInt(modelId),     // model
                                         new PyInt(taskId),      // taskId (backId)
-                                        new PyInt((int)scale),  // scale
+                                        new PyInt(actualScale), // scale (使用从模型提取的倍数)
                                         format: new PyString("png"),
                                         tileSize: new PyInt(tileSize)
                                     );
@@ -407,7 +411,7 @@ namespace NeeView.SuperResolution
                                         inputPyBytes,           // data
                                         new PyInt(modelId),     // model
                                         new PyInt(taskId),      // taskId (backId)
-                                        new PyInt((int)scale),  // scale
+                                        new PyInt(actualScale), // scale (使用从模型提取的倍数)
                                         format: new PyString("png")
                                     );
                                 }
@@ -720,6 +724,26 @@ namespace NeeView.SuperResolution
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// 从模型枚举中提取缩放倍数
+        /// </summary>
+        private int GetScaleFromModel(SuperResolutionModel model)
+        {
+            return model switch
+            {
+                SuperResolutionModel.Waifu2xAnime2x => 2,
+                SuperResolutionModel.Waifu2xAnime4x => 4,
+                SuperResolutionModel.Waifu2xPhoto2x => 2,
+                SuperResolutionModel.Waifu2xPhoto4x => 4,
+                SuperResolutionModel.RealESRGANAnime4x => 4,
+                SuperResolutionModel.RealESRGANGeneral4x => 4,
+                SuperResolutionModel.RealCUGANAnime2x => 2,
+                SuperResolutionModel.RealCUGANAnime3x => 3,
+                SuperResolutionModel.RealCUGANAnime4x => 4,
+                _ => 2  // 默认2x
+            };
         }
 
         /// <summary>

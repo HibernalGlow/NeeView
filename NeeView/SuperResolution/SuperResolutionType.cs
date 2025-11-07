@@ -36,46 +36,55 @@ namespace NeeView.SuperResolution
         /// <summary>
         /// Waifu2x - 动漫风格 (2x)
         /// </summary>
+        [System.ComponentModel.Description("Waifu2x 动漫 2x")]
         Waifu2xAnime2x,
 
         /// <summary>
         /// Waifu2x - 动漫风格 (4x)
         /// </summary>
+        [System.ComponentModel.Description("Waifu2x 动漫 4x")]
         Waifu2xAnime4x,
 
         /// <summary>
         /// Waifu2x - 照片风格 (2x)
         /// </summary>
+        [System.ComponentModel.Description("Waifu2x 照片 2x")]
         Waifu2xPhoto2x,
 
         /// <summary>
         /// Waifu2x - 照片风格 (4x)
         /// </summary>
+        [System.ComponentModel.Description("Waifu2x 照片 4x")]
         Waifu2xPhoto4x,
 
         /// <summary>
         /// RealESRGAN - 动漫风格 (4x)
         /// </summary>
+        [System.ComponentModel.Description("RealESRGAN 动漫 4x")]
         RealESRGANAnime4x,
 
         /// <summary>
         /// RealESRGAN - 通用模型 (4x)
         /// </summary>
+        [System.ComponentModel.Description("RealESRGAN 通用 4x")]
         RealESRGANGeneral4x,
 
         /// <summary>
         /// Real-CUGAN - 动漫风格 (2x)
         /// </summary>
+        [System.ComponentModel.Description("RealCUGAN 动漫 2x")]
         RealCUGANAnime2x,
 
         /// <summary>
         /// Real-CUGAN - 动漫风格 (3x)
         /// </summary>
+        [System.ComponentModel.Description("RealCUGAN 动漫 3x")]
         RealCUGANAnime3x,
 
         /// <summary>
         /// Real-CUGAN - 动漫风格 (4x)
         /// </summary>
+        [System.ComponentModel.Description("RealCUGAN 动漫 4x")]
         RealCUGANAnime4x
     }
 

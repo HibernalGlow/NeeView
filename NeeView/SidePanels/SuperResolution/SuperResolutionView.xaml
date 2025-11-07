@@ -11,9 +11,6 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         
-        <!-- Count 转 Visibility 转换器 -->
-        <local:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
-        
         <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="0,5"/>
         </Style>
@@ -155,70 +152,24 @@
                 </StackPanel>
             </GroupBox>
 
-            <!-- 高级设置 -->
-            <GroupBox Header="高级设置" Margin="0,10">
+            <!-- 模型选择 -->
+            <GroupBox Header="模型选择" Margin="0,10">
                 <StackPanel>
-                    <TextBlock Text="模型文件路径:" Margin="0,5,0,3"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" 
-                                Text="{Binding Config.ModelPath, UpdateSourceTrigger=PropertyChanged}"
-                                IsReadOnly="True"
-                                ToolTip="sr_vulkan 模型文件存放路径,空表示使用默认路径"/>
-                        <Button Grid.Column="1" 
-                               Content="浏览..." 
-                               Margin="5,0,0,0" 
-                               Padding="8,3"
-                               Click="BrowseModelPath_Click"/>
-                        <Button Grid.Column="2" 
-                               Content="扫描" 
-                               Margin="5,0,0,0" 
-                               Padding="8,3"
-                               Command="{Binding ScanModelsCommand}"
-                               ToolTip="扫描文件夹中的模型文件"/>
-                    </Grid>
-                    <TextBlock Text="{Binding ModelScanStatus}" 
-                              FontSize="10" 
-                              Foreground="Gray"
-                              Margin="0,2,0,0"/>
+                    <TextBlock Text="超分模型:" Margin="0,5,0,3"/>
+                    <ComboBox ItemsSource="{Binding AvailableModelTypes}"
+                              SelectedItem="{Binding Config.Model}"
+                              Margin="0,0,0,5"
+                              ToolTip="选择超分辨率模型 (模型文件通过 pip 自动管理)"/>
                     
-                    <!-- 识别到的模型列表 -->
-                    <StackPanel Visibility="{Binding AvailableModels.Count, Converter={StaticResource CountToVisibilityConverter}}"
-                               Margin="0,10,0,0">
-                        <TextBlock Text="可用模型:" Margin="0,5,0,3" FontWeight="Bold"/>
-                        <ListBox ItemsSource="{Binding AvailableModels}"
-                                SelectedItem="{Binding SelectedModel}"
-                                SelectionMode="Single"
-                                MaxHeight="200"
-                                BorderThickness="1"
-                                BorderBrush="#CCCCCC">
-                            <ListBox.ItemContainerStyle>
-                                <Style TargetType="ListBoxItem">
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                </Style>
-                            </ListBox.ItemContainerStyle>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <CheckBox IsChecked="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected, Mode=TwoWay}"
-                                              Padding="6,4">
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold"/>
-                                            <TextBlock FontSize="10" Foreground="Gray">
-                                                <Run Text="文件: "/><Run Text="{Binding ModelName}"/>
-                                            </TextBlock>
-                                            <TextBlock FontSize="10" Foreground="Gray">
-                                                <Run Text="大小: "/><Run Text="{Binding BinFileSize, StringFormat={}{0:N0} bytes}"/>
-                                            </TextBlock>
-                                        </StackPanel>
-                                    </CheckBox>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </StackPanel>
+                    <TextBlock FontSize="10" Foreground="Gray" TextWrapping="Wrap" Margin="0,5,0,0">
+                        <Run Text="💡 提示: 模型通过 Python pip 自动管理"/>
+                        <LineBreak/>
+                        <Run Text="   • Waifu2x: 适合动漫图片,速度快"/>
+                        <LineBreak/>
+                        <Run Text="   • RealESRGAN: 适合照片/通用图片"/>
+                        <LineBreak/>
+                        <Run Text="   • RealCUGAN: 平衡速度和质量"/>
+                    </TextBlock>
                 </StackPanel>
             </GroupBox>
 

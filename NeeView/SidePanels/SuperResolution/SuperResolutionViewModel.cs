@@ -26,9 +26,8 @@ namespace NeeView.SuperResolution
             ProcessCurrentImageCommand = new RelayCommand(ProcessCurrentImage, CanProcessCurrentImage);
             OpenBatchProcessCommand = new RelayCommand(OpenBatchProcess);
             InitializeServiceCommand = new RelayCommand(async () => await InitializeServiceAsync(null, true));
-            ScanModelsCommand = new RelayCommand(async () => await ScanModelsAsync(), () => !string.IsNullOrEmpty(_config.ModelPath));
 
-            // 监听模型路径变化
+            // 监听配置变化
             _config.PropertyChanged += OnConfigPropertyChanged;
 
             // 监听页面变化 (用于更新状态显示)
@@ -40,12 +39,7 @@ namespace NeeView.SuperResolution
 
         private void OnConfigPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(SuperResolutionConfig.ModelPath))
-            {
-                // 模型路径变化时自动扫描
-                _ = ScanModelsAsync();
-            }
-            else if (e.PropertyName == nameof(SuperResolutionConfig.IsEnabled))
+            if (e.PropertyName == nameof(SuperResolutionConfig.IsEnabled))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
                 SuperResolutionLogger.Info($"全局开关已{(_config.IsEnabled ? "启用" : "禁用")}");
@@ -300,43 +294,6 @@ namespace NeeView.SuperResolution
         }
 
         /// <summary>
-        /// 可用的模型列表
-        /// </summary>
-        private ObservableCollection<DetectedModel> _availableModels = new ObservableCollection<DetectedModel>();
-        public ObservableCollection<DetectedModel> AvailableModels
-        {
-            get => _availableModels;
-            set => SetProperty(ref _availableModels, value);
-        }
-
-        /// <summary>
-        /// 选中的模型
-        /// </summary>
-        private DetectedModel? _selectedModel;
-        public DetectedModel? SelectedModel
-        {
-            get => _selectedModel;
-            set
-            {
-                if (SetProperty(ref _selectedModel, value) && value != null)
-                {
-                    // 当模型选中时，自动更新配置
-                    UpdateConfigFromModel(value);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 模型扫描状态
-        /// </summary>
-        private string _modelScanStatus = "未扫描";
-        public string ModelScanStatus
-        {
-            get => _modelScanStatus;
-            set => SetProperty(ref _modelScanStatus, value);
-        }
-
-        /// <summary>
         /// 当前图片超分状态
         /// </summary>
         private SuperResolutionImageStatus _currentImageStatus = SuperResolutionImageStatus.None;
@@ -433,9 +390,20 @@ namespace NeeView.SuperResolution
         public ICommand InitializeServiceCommand { get; }
 
         /// <summary>
-        /// 扫描模型命令
+        /// 可用的模型类型列表(用于下拉框)
         /// </summary>
-        public ICommand ScanModelsCommand { get; }
+        public SuperResolutionModel[] AvailableModelTypes => new[]
+        {
+            SuperResolutionModel.Waifu2xAnime2x,
+            SuperResolutionModel.Waifu2xAnime4x,
+            SuperResolutionModel.Waifu2xPhoto2x,
+            SuperResolutionModel.Waifu2xPhoto4x,
+            SuperResolutionModel.RealESRGANAnime4x,
+            SuperResolutionModel.RealESRGANGeneral4x,
+            SuperResolutionModel.RealCUGANAnime2x,
+            SuperResolutionModel.RealCUGANAnime3x,
+            SuperResolutionModel.RealCUGANAnime4x,
+        };
 
         #endregion
 
@@ -669,140 +637,6 @@ namespace NeeView.SuperResolution
         {
             // TODO: 打开批量处理窗口
             StatusMessage = "Batch processing window (to be implemented)";
-        }
-
-        /// <summary>
-        /// 扫描模型文件夹
-        /// </summary>
-        private async Task ScanModelsAsync()
-        {
-            if (string.IsNullOrEmpty(_config.ModelPath))
-            {
-                ModelScanStatus = "未设置模型路径";
-                AvailableModels.Clear();
-                return;
-            }
-
-            ModelScanStatus = "正在扫描...";
-            
-            await Task.Run(() =>
-            {
-                try
-                {
-                    var models = ModelScanner.ScanModelDirectory(_config.ModelPath);
-                    
-                    App.Current.Dispatcher.Invoke(() =>
-                    {
-                        AvailableModels.Clear();
-                        foreach (var model in models)
-                        {
-                            AvailableModels.Add(model);
-                        }
-
-                        if (models.Count > 0)
-                        {
-                            ModelScanStatus = $"找到 {models.Count} 个模型";
-                            if (SelectedModel == null)
-                            {
-                                SelectedModel = models[0];
-                            }
-                        }
-                        else
-                        {
-                            ModelScanStatus = "未找到可用模型";
-                        }
-                    });
-                }
-                catch (Exception ex)
-                {
-                    App.Current.Dispatcher.Invoke(() =>
-                    {
-                        ModelScanStatus = $"扫描失败: {ex.Message}";
-                        AvailableModels.Clear();
-                    });
-                }
-            });
-        }
-
-        /// <summary>
-        /// 根据选中的模型更新配置
-        /// </summary>
-        private void UpdateConfigFromModel(DetectedModel model)
-        {
-            try
-            {
-                SuperResolutionLogger.Info($"选中模型: {model.DisplayName}");
-                
-                // 根据模型类型设置算法类型
-                _config.AlgorithmType = model.ModelType switch
-                {
-                    ModelType.Waifu2x => SuperResolutionType.Waifu2x,
-                    ModelType.RealESRGAN => SuperResolutionType.RealESRGAN,
-                    ModelType.RealCUGAN => SuperResolutionType.RealCUGAN,
-                    _ => SuperResolutionType.Waifu2x
-                };
-
-                // 设置缩放倍数
-                if (model.Scale > 0)
-                {
-                    _config.ScaleFactor = model.Scale;
-                }
-
-                // 设置降噪等级
-                _config.NoiseLevel = model.DenoiseLevel;
-
-                // 根据模型名称映射到 SuperResolutionModel 枚举
-                _config.Model = MapDetectedModelToEnum(model);
-
-                SuperResolutionLogger.Info($"配置已更新: Type={_config.AlgorithmType}, Scale={_config.ScaleFactor}x, Denoise={_config.NoiseLevel}, Model={_config.Model}");
-            }
-            catch (Exception ex)
-            {
-                SuperResolutionLogger.Error($"更新配置失败: {ex.Message}", ex);
-            }
-        }
-
-        /// <summary>
-        /// 将检测到的模型映射到配置枚举
-        /// </summary>
-        private SuperResolutionModel MapDetectedModelToEnum(DetectedModel model)
-        {
-            // 根据模型名称和类型映射
-            var modelName = model.ModelName.ToLowerInvariant();
-            
-            if (model.ModelType == ModelType.Waifu2x)
-            {
-                if (modelName.Contains("anime"))
-                {
-                    if (model.Scale == 2) return SuperResolutionModel.Waifu2xAnime2x;
-                    if (model.Scale == 4) return SuperResolutionModel.Waifu2xAnime4x;
-                }
-                else if (modelName.Contains("photo"))
-                {
-                    if (model.Scale == 2) return SuperResolutionModel.Waifu2xPhoto2x;
-                    if (model.Scale == 4) return SuperResolutionModel.Waifu2xPhoto4x;
-                }
-            }
-            else if (model.ModelType == ModelType.RealESRGAN)
-            {
-                if (modelName.Contains("anime"))
-                {
-                    return SuperResolutionModel.RealESRGANAnime4x;
-                }
-                else
-                {
-                    return SuperResolutionModel.RealESRGANGeneral4x;
-                }
-            }
-            else if (model.ModelType == ModelType.RealCUGAN)
-            {
-                if (model.Scale == 2) return SuperResolutionModel.RealCUGANAnime2x;
-                if (model.Scale == 3) return SuperResolutionModel.RealCUGANAnime3x;
-                if (model.Scale == 4) return SuperResolutionModel.RealCUGANAnime4x;
-            }
-
-            // 默认返回
-            return SuperResolutionModel.Waifu2xAnime2x;
         }
 
         #endregion
