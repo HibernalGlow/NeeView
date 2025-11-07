@@ -153,7 +153,55 @@ namespace NeeView
                 item.Attributes |= FolderItemAttribute.ReparsePoint;
             }
 
+            // 计算统计数据
+            CalculateFolderStatistics(item, e);
+
             return item;
+        }
+
+        /// <summary>
+        /// 计算文件夹统计信息
+        /// </summary>
+        private void CalculateFolderStatistics(FolderItem item, DirectoryInfo directory)
+        {
+            try
+            {
+                var entries = directory.GetFileSystemInfos();
+                
+                int subFolderCount = 0;
+                int archiveCount = 0;
+                int imageCount = 0;
+                int videoCount = 0;
+
+                foreach (var entry in entries)
+                {
+                    if (!FileIOProfile.Current.IsFileValid(entry.Attributes))
+                        continue;
+
+                    if (entry is DirectoryInfo)
+                    {
+                        subFolderCount++;
+                    }
+                    else if (entry is FileInfo fileInfo)
+                    {
+                        var archiveType = ArchiveManager.Current.GetSupportedType(fileInfo.FullName);
+                        if (archiveType != ArchiveType.None && archiveType != ArchiveType.PlaylistArchive)
+                        {
+                            archiveCount++;
+                        }
+                    }
+                }
+
+                item.SubFolderCount = subFolderCount;
+                item.ArchiveCount = archiveCount;
+                // 图片和视频数量留待后续实现(需要遍历所有文件)
+                item.ImageCount = 0;
+                item.VideoCount = 0;
+            }
+            catch
+            {
+                // 忽略权限错误等异常
+            }
         }
 
 

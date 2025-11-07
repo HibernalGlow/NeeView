@@ -148,6 +148,8 @@
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     <local:FolderItemIconOverlayToVisibilityConverter x:Key="FolderItemIconOverlayToVisibilityConverter"/>
     <local:FolderItemIconOverlayToImageSourceConverter x:Key="FolderItemIconOverlayToImageSourceConverter"/>
+    <local:FolderItemStatsToVisibilityConverter x:Key="FolderItemStatsToVisibilityConverter"/>
+    <local:FolderItemAnyStatsToVisibilityConverter x:Key="FolderItemAnyStatsToVisibilityConverter"/>
 
     <Style TargetType="{x:Type local:FolderListIcon}">
         <Setter Property="Height" Value="20"/>
@@ -158,6 +160,54 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type local:FolderListIcon}">
                     <DockPanel Height="20" LastChildFill="False">
+                        <!-- 🔧 统计信息区域 (左侧) -->
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,0,4,0">
+                            <StackPanel.Visibility>
+                                <MultiBinding Converter="{StaticResource FolderItemAnyStatsToVisibilityConverter}">
+                                    <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="FolderItem.SubFolderCount"/>
+                                    <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="FolderItem.ArchiveCount"/>
+                                    <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="FolderItem.ImageCount"/>
+                                    <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="FolderItem.VideoCount"/>
+                                </MultiBinding>
+                            </StackPanel.Visibility>
+                            
+                            <!-- 子文件夹 -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,3,0" 
+                                        Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=FolderItem.SubFolderCount, Converter={StaticResource FolderItemStatsToVisibilityConverter}}">
+                                <Path Width="10" Height="10" Stretch="Uniform" Fill="{DynamicResource Panel.Note}" 
+                                      Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" />
+                                <TextBlock Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=FolderItem.SubFolderCount}" 
+                                           FontSize="10" Foreground="{DynamicResource Panel.Note}" Margin="1,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <!-- 压缩包 -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,3,0"
+                                        Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=FolderItem.ArchiveCount, Converter={StaticResource FolderItemStatsToVisibilityConverter}}">
+                                <Path Width="10" Height="10" Stretch="Uniform" Fill="{DynamicResource Panel.Note}"
+                                      Data="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z" />
+                                <TextBlock Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=FolderItem.ArchiveCount}" 
+                                           FontSize="10" Foreground="{DynamicResource Panel.Note}" Margin="1,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <!-- 图片数量 -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,3,0"
+                                        Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=FolderItem.ImageCount, Converter={StaticResource FolderItemStatsToVisibilityConverter}}">
+                                <Path Width="10" Height="10" Stretch="Uniform" Fill="{DynamicResource Panel.Note}"
+                                      Data="M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z" />
+                                <TextBlock Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=FolderItem.ImageCount}" 
+                                           FontSize="10" Foreground="{DynamicResource Panel.Note}" Margin="1,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <!-- 视频数量 -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0"
+                                        Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=FolderItem.VideoCount, Converter={StaticResource FolderItemStatsToVisibilityConverter}}">
+                                <Path Width="10" Height="10" Stretch="Uniform" Fill="{DynamicResource Panel.Note}"
+                                      Data="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z" />
+                                <TextBlock Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=FolderItem.VideoCount}" 
+                                           FontSize="10" Foreground="{DynamicResource Panel.Note}" Margin="1,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                        
                         <Grid x:Name="PART_Folder" DockPanel.Dock="Right">
                             <Grid x:Name="PART_Spacer" Width="18" Height="18" Margin="2,0,0,0" Visibility="{TemplateBinding IsKeepArea, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             <Grid Width="18" Height="18" Margin="2,0,0,0" Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=FolderItem.IsDirectory, Converter={StaticResource BooleanToVisibilityConverter}}">

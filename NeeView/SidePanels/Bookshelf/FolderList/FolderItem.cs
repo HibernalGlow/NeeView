@@ -93,6 +93,12 @@ namespace NeeView
         private FolderItemIconOverlay _iconOverlay = FolderItemIconOverlay.Uninitialized;
         private bool _isVisible;
         private int _pendingCount;
+        
+        // 🔧 新增: 子内容统计
+        private int _subFolderCount = -1; // -1表示未统计
+        private int _archiveCount = -1;
+        private int _imageCount = -1;
+        private int _videoCount = -1;
 
 
         public FolderItem(bool isOverlayEnabled)
@@ -272,6 +278,42 @@ namespace NeeView
         public int PendingCount
         {
             get { return _pendingCount; }
+        }
+
+        /// <summary>
+        /// 🔧 子文件夹数量 (-1表示未统计)
+        /// </summary>
+        public int SubFolderCount
+        {
+            get { return _subFolderCount; }
+            set { SetProperty(ref _subFolderCount, value); }
+        }
+
+        /// <summary>
+        /// 🔧 压缩包数量 (-1表示未统计)
+        /// </summary>
+        public int ArchiveCount
+        {
+            get { return _archiveCount; }
+            set { SetProperty(ref _archiveCount, value); }
+        }
+
+        /// <summary>
+        /// 🔧 图片数量 (-1表示未统计,仅压缩包使用)
+        /// </summary>
+        public int ImageCount
+        {
+            get { return _imageCount; }
+            set { SetProperty(ref _imageCount, value); }
+        }
+
+        /// <summary>
+        /// 🔧 视频数量 (-1表示未统计,仅压缩包使用)
+        /// </summary>
+        public int VideoCount
+        {
+            get { return _videoCount; }
+            set { SetProperty(ref _videoCount, value); }
         }
 
 
