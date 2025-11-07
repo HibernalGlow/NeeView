@@ -89,17 +89,60 @@ namespace NeeView.SuperResolution
         /// <summary>
         /// 检查是否应该对此图片进行超分
         /// </summary>
-        public bool ShouldProcess(BitmapSource source, SuperResolutionConfig config)
+        public bool ShouldProcess(BitmapSource source, SuperResolutionConfig config, long fileSize = -1)
         {
-            if (source == null || !config.IsEnabled)
+            if (source == null || !config.IsEnabled || !config.AutoApplyOnView)
                 return false;
 
-            // 检查尺寸限制
-            var maxDimension = Math.Max(source.PixelWidth, source.PixelHeight);
-            if (config.AutoApplyOnView && maxDimension > config.AutoApplyMaxSize)
+            var width = source.PixelWidth;
+            var height = source.PixelHeight;
+
+            // 检查宽度限制
+            if (config.AutoApplyMinWidth > 0 && width < config.AutoApplyMinWidth)
+            {
+                SuperResolutionLogger.Info($"图片宽度 {width}px 小于最小限制 {config.AutoApplyMinWidth}px,跳过");
+                return false;
+            }
+            if (config.AutoApplyMaxWidth > 0 && width > config.AutoApplyMaxWidth)
+            {
+                SuperResolutionLogger.Info($"图片宽度 {width}px 超过最大限制 {config.AutoApplyMaxWidth}px,跳过");
+                return false;
+            }
+
+            // 检查高度限制
+            if (config.AutoApplyMinHeight > 0 && height < config.AutoApplyMinHeight)
+            {
+                SuperResolutionLogger.Info($"图片高度 {height}px 小于最小限制 {config.AutoApplyMinHeight}px,跳过");
+                return false;
+            }
+            if (config.AutoApplyMaxHeight > 0 && height > config.AutoApplyMaxHeight)
+            {
+                SuperResolutionLogger.Info($"图片高度 {height}px 超过最大限制 {config.AutoApplyMaxHeight}px,跳过");
+                return false;
+            }
+
+            // 检查最大尺寸限制(宽或高)
+            var maxDimension = Math.Max(width, height);
+            if (config.AutoApplyMaxSize > 0 && maxDimension > config.AutoApplyMaxSize)
             {
                 SuperResolutionLogger.Info($"图片尺寸 {maxDimension}px 超过自动超分限制 {config.AutoApplyMaxSize}px,跳过");
                 return false;
+            }
+
+            // 检查文件大小限制 (如果提供了)
+            if (fileSize > 0)
+            {
+                var fileSizeKB = fileSize / 1024;
+                if (config.AutoApplyMinFileSize > 0 && fileSizeKB < config.AutoApplyMinFileSize)
+                {
+                    SuperResolutionLogger.Info($"文件大小 {fileSizeKB}KB 小于最小限制 {config.AutoApplyMinFileSize}KB,跳过");
+                    return false;
+                }
+                if (config.AutoApplyMaxFileSize > 0 && fileSizeKB > config.AutoApplyMaxFileSize)
+                {
+                    SuperResolutionLogger.Info($"文件大小 {fileSizeKB}KB 超过最大限制 {config.AutoApplyMaxFileSize}KB,跳过");
+                    return false;
+                }
             }
 
             return true;

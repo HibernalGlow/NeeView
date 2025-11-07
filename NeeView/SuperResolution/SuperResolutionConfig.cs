@@ -196,6 +196,78 @@ namespace NeeView.SuperResolution
         }
 
         /// <summary>
+        /// 自动超分的最小图片宽度 (像素, -1 表示无限制)
+        /// </summary>
+        private int _autoApplyMinWidth = -1;
+        [DataMember]
+        [DefaultValue(-1)]
+        public int AutoApplyMinWidth
+        {
+            get => _autoApplyMinWidth;
+            set => SetProperty(ref _autoApplyMinWidth, value);
+        }
+
+        /// <summary>
+        /// 自动超分的最大图片宽度 (像素, -1 表示无限制)
+        /// </summary>
+        private int _autoApplyMaxWidth = -1;
+        [DataMember]
+        [DefaultValue(-1)]
+        public int AutoApplyMaxWidth
+        {
+            get => _autoApplyMaxWidth;
+            set => SetProperty(ref _autoApplyMaxWidth, value);
+        }
+
+        /// <summary>
+        /// 自动超分的最小图片高度 (像素, -1 表示无限制)
+        /// </summary>
+        private int _autoApplyMinHeight = -1;
+        [DataMember]
+        [DefaultValue(-1)]
+        public int AutoApplyMinHeight
+        {
+            get => _autoApplyMinHeight;
+            set => SetProperty(ref _autoApplyMinHeight, value);
+        }
+
+        /// <summary>
+        /// 自动超分的最大图片高度 (像素, -1 表示无限制)
+        /// </summary>
+        private int _autoApplyMaxHeight = -1;
+        [DataMember]
+        [DefaultValue(-1)]
+        public int AutoApplyMaxHeight
+        {
+            get => _autoApplyMaxHeight;
+            set => SetProperty(ref _autoApplyMaxHeight, value);
+        }
+
+        /// <summary>
+        /// 自动超分的最小文件大小 (KB, -1 表示无限制)
+        /// </summary>
+        private int _autoApplyMinFileSize = -1;
+        [DataMember]
+        [DefaultValue(-1)]
+        public int AutoApplyMinFileSize
+        {
+            get => _autoApplyMinFileSize;
+            set => SetProperty(ref _autoApplyMinFileSize, value);
+        }
+
+        /// <summary>
+        /// 自动超分的最大文件大小 (KB, -1 表示无限制)
+        /// </summary>
+        private int _autoApplyMaxFileSize = -1;
+        [DataMember]
+        [DefaultValue(-1)]
+        public int AutoApplyMaxFileSize
+        {
+            get => _autoApplyMaxFileSize;
+            set => SetProperty(ref _autoApplyMaxFileSize, value);
+        }
+
+        /// <summary>
         /// 是否缓存处理结果
         /// </summary>
         private bool _cacheResults = true;
@@ -217,6 +289,90 @@ namespace NeeView.SuperResolution
         {
             get => _cachePath;
             set => SetProperty(ref _cachePath, value ?? "");
+        }
+
+        /// <summary>
+        /// 是否启用混合缓存（内存+磁盘）
+        /// </summary>
+        private bool _enableHybridCache = true;
+        [DataMember]
+        [DefaultValue(true)]
+        public bool EnableHybridCache
+        {
+            get => _enableHybridCache;
+            set => SetProperty(ref _enableHybridCache, value);
+        }
+
+        /// <summary>
+        /// 内存缓存最大数量
+        /// </summary>
+        private int _memoryCacheMaxCount = 10;
+        [DataMember]
+        [DefaultValue(10)]
+        public int MemoryCacheMaxCount
+        {
+            get => _memoryCacheMaxCount;
+            set => SetProperty(ref _memoryCacheMaxCount, Math.Max(1, Math.Min(50, value)));
+        }
+
+        /// <summary>
+        /// 内存缓存最大大小 (MB)
+        /// </summary>
+        private int _memoryCacheMaxSizeMB = 100;
+        [DataMember]
+        [DefaultValue(100)]
+        public int MemoryCacheMaxSizeMB
+        {
+            get => _memoryCacheMaxSizeMB;
+            set => SetProperty(ref _memoryCacheMaxSizeMB, Math.Max(10, Math.Min(1024, value)));
+        }
+
+        /// <summary>
+        /// 磁盘缓存最大大小 (MB)
+        /// </summary>
+        private int _diskCacheMaxSizeMB = 5120;
+        [DataMember]
+        [DefaultValue(5120)]
+        public int DiskCacheMaxSizeMB
+        {
+            get => _diskCacheMaxSizeMB;
+            set => SetProperty(ref _diskCacheMaxSizeMB, Math.Max(100, Math.Min(10240, value)));
+        }
+
+        /// <summary>
+        /// 磁盘缓存最大文件数量
+        /// </summary>
+        private int _diskCacheMaxFiles = 10000;
+        [DataMember]
+        [DefaultValue(10000)]
+        public int DiskCacheMaxFiles
+        {
+            get => _diskCacheMaxFiles;
+            set => SetProperty(ref _diskCacheMaxFiles, Math.Max(100, Math.Min(50000, value)));
+        }
+
+        /// <summary>
+        /// 内存缓存过期时间 (小时)
+        /// </summary>
+        private int _memoryCacheExpirationHours = 2;
+        [DataMember]
+        [DefaultValue(2)]
+        public int MemoryCacheExpirationHours
+        {
+            get => _memoryCacheExpirationHours;
+            set => SetProperty(ref _memoryCacheExpirationHours, Math.Max(1, Math.Min(24, value)));
+        }
+
+        /// <summary>
+        /// 磁盘缓存过期时间 (天)
+        /// </summary>
+        private int _diskCacheExpirationDays = 7;
+        [DataMember]
+        [DefaultValue(7)]
+        public int DiskCacheExpirationDays
+        {
+            get => _diskCacheExpirationDays;
+            set => SetProperty(ref _diskCacheExpirationDays, Math.Max(1, Math.Min(90, value)));
         }
 
         /// <summary>

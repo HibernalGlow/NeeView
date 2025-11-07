@@ -65,26 +65,30 @@ namespace NeeView
             var config = SuperResolutionConfig.Current;
             if (config != null && config.IsEnabled && config.AutoApplyOnView)
             {
+                // 获取文件大小
+                long fileSize = ArchiveEntry?.Length ?? -1;
+                var entryName = ArchiveEntry?.EntryName ?? "Unknown";
+
                 // 检查是否应该处理
-                if (_srHelper.ShouldProcess(bitmapSource, config))
+                if (_srHelper.ShouldProcess(bitmapSource, config, fileSize))
                 {
                     try
                     {
-                        SuperResolutionLogger.Info($"[自动超分] 压缩包图片: {ArchiveEntry.EntryName}");
+                        SuperResolutionLogger.Info($"[自动超分] 压缩包图片: {entryName} ({fileSize / 1024.0:F2} KB, {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight})");
                         var srResult = await _srHelper.ProcessBitmapSourceAsync(bitmapSource, config, token);
                         if (srResult != null)
                         {
-                            SuperResolutionLogger.Info($"[自动超分成功] {ArchiveEntry.EntryName}: {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight} -> {srResult.PixelWidth}x{srResult.PixelHeight}");
+                            SuperResolutionLogger.Info($"[自动超分成功] {entryName}: {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight} -> {srResult.PixelWidth}x{srResult.PixelHeight}");
                             return srResult;
                         }
                         else
                         {
-                            SuperResolutionLogger.Warning($"[自动超分失败] {ArchiveEntry.EntryName}, 使用原图");
+                            SuperResolutionLogger.Warning($"[自动超分失败] {entryName}, 使用原图");
                         }
                     }
                     catch (Exception ex)
                     {
-                        SuperResolutionLogger.Error($"[自动超分异常] {ArchiveEntry.EntryName}: {ex.Message}", ex);
+                        SuperResolutionLogger.Error($"[自动超分异常] {entryName}: {ex.Message}", ex);
                     }
                 }
             }

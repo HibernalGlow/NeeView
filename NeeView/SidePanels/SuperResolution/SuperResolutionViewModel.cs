@@ -97,13 +97,80 @@ namespace NeeView.SuperResolution
                     else
                     {
                         CurrentImageStatus = SuperResolutionImageStatus.None;
-                        EnableCurrentImageSuperResolution = false;
+                        
+                        // 检查是否符合自动超分条件
+                        if (_config.AutoApplyOnView && ShouldAutoEnableSuperResolution(page, entry))
+                        {
+                            EnableCurrentImageSuperResolution = true;
+                        }
+                        else
+                        {
+                            EnableCurrentImageSuperResolution = false;
+                        }
                     }
+                }
+                else
+                {
+                    CurrentImagePath = "";
+                    CurrentImageStatus = SuperResolutionImageStatus.None;
+                    EnableCurrentImageSuperResolution = false;
                 }
             }
             catch (Exception ex)
             {
                 SuperResolutionLogger.Error($"更新当前图片信息失败: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// 检查图片是否符合自动超分条件
+        /// </summary>
+        private bool ShouldAutoEnableSuperResolution(Page page, ArchiveEntry entry)
+        {
+            try
+            {
+                // 获取图片信息
+                var pictureInfo = page.Content.PictureInfo;
+                if (pictureInfo == null)
+                    return false;
+
+                var width = (int)pictureInfo.OriginalSize.Width;
+                var height = (int)pictureInfo.OriginalSize.Height;
+                var fileSize = entry.Length;
+
+                // 检查宽度限制
+                if (_config.AutoApplyMinWidth > 0 && width < _config.AutoApplyMinWidth)
+                    return false;
+                if (_config.AutoApplyMaxWidth > 0 && width > _config.AutoApplyMaxWidth)
+                    return false;
+
+                // 检查高度限制
+                if (_config.AutoApplyMinHeight > 0 && height < _config.AutoApplyMinHeight)
+                    return false;
+                if (_config.AutoApplyMaxHeight > 0 && height > _config.AutoApplyMaxHeight)
+                    return false;
+
+                // 检查最大尺寸
+                var maxDimension = Math.Max(width, height);
+                if (_config.AutoApplyMaxSize > 0 && maxDimension > _config.AutoApplyMaxSize)
+                    return false;
+
+                // 检查文件大小
+                if (fileSize > 0)
+                {
+                    var fileSizeKB = fileSize / 1024;
+                    if (_config.AutoApplyMinFileSize > 0 && fileSizeKB < _config.AutoApplyMinFileSize)
+                        return false;
+                    if (_config.AutoApplyMaxFileSize > 0 && fileSizeKB > _config.AutoApplyMaxFileSize)
+                        return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                SuperResolutionLogger.Error($"检查自动超分条件失败: {ex.Message}", ex);
+                return false;
             }
         }
 

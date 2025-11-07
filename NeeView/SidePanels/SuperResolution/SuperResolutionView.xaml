@@ -85,11 +85,73 @@
                              ToolTip="打开图片时自动应用超分辨率处理"/>
                     
                     <StackPanel Visibility="{Binding Config.AutoApplyOnView, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <TextBlock Text="自动超分最大尺寸:" Margin="0,10,0,3"/>
-                        <TextBox Text="{Binding Config.AutoApplyMaxSize, UpdateSourceTrigger=PropertyChanged}" 
-                                Margin="0,0,0,3"
-                                ToolTip="超过此尺寸(像素)的图片不会自动超分"/>
-                        <TextBlock Text="(避免内存溢出)" FontSize="10" Foreground="Gray"/>
+                        <!-- 尺寸限制 -->
+                        <TextBlock Text="尺寸限制:" FontWeight="Bold" Margin="0,10,0,5"/>
+                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- 最大尺寸(宽或高) -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="最大尺寸:" VerticalAlignment="Center" Margin="0,3"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Config.AutoApplyMaxSize, UpdateSourceTrigger=PropertyChanged}" 
+                                    Margin="5,3" ToolTip="宽或高的最大值(像素)"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="px" VerticalAlignment="Center" Margin="5,3"/>
+
+                            <!-- 宽度范围 -->
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="宽度:" VerticalAlignment="Center" Margin="0,3"/>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="5,3">
+                                <TextBox Text="{Binding Config.AutoApplyMinWidth, UpdateSourceTrigger=PropertyChanged}" 
+                                        Width="60" ToolTip="最小宽度(-1=无限制)"/>
+                                <TextBlock Text=" ~ " VerticalAlignment="Center" Margin="5,0"/>
+                                <TextBox Text="{Binding Config.AutoApplyMaxWidth, UpdateSourceTrigger=PropertyChanged}" 
+                                        Width="60" ToolTip="最大宽度(-1=无限制)"/>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="px" VerticalAlignment="Center" Margin="5,3"/>
+
+                            <!-- 高度范围 -->
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="高度:" VerticalAlignment="Center" Margin="0,3"/>
+                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="5,3">
+                                <TextBox Text="{Binding Config.AutoApplyMinHeight, UpdateSourceTrigger=PropertyChanged}" 
+                                        Width="60" ToolTip="最小高度(-1=无限制)"/>
+                                <TextBlock Text=" ~ " VerticalAlignment="Center" Margin="5,0"/>
+                                <TextBox Text="{Binding Config.AutoApplyMaxHeight, UpdateSourceTrigger=PropertyChanged}" 
+                                        Width="60" ToolTip="最大高度(-1=无限制)"/>
+                            </StackPanel>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="px" VerticalAlignment="Center" Margin="5,3"/>
+                        </Grid>
+
+                        <!-- 文件大小限制 -->
+                        <TextBlock Text="文件大小:" FontWeight="Bold" Margin="0,10,0,5"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="范围:" VerticalAlignment="Center" Margin="0,3"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,3">
+                                <TextBox Text="{Binding Config.AutoApplyMinFileSize, UpdateSourceTrigger=PropertyChanged}" 
+                                        Width="60" ToolTip="最小文件大小(-1=无限制)"/>
+                                <TextBlock Text=" ~ " VerticalAlignment="Center" Margin="5,0"/>
+                                <TextBox Text="{Binding Config.AutoApplyMaxFileSize, UpdateSourceTrigger=PropertyChanged}" 
+                                        Width="60" ToolTip="最大文件大小(-1=无限制)"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="KB" VerticalAlignment="Center" Margin="5,3"/>
+                        </Grid>
+
+                        <TextBlock Text="提示: -1 表示无限制" FontSize="10" Foreground="Gray" Margin="0,5,0,0"/>
                     </StackPanel>
                 </StackPanel>
             </GroupBox>
