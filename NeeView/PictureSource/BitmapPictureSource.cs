@@ -100,6 +100,11 @@ namespace NeeView
                             SuperResolutionLogger.Warning($"[自动超分失败] {entryName}, 使用原图");
                         }
                     }
+                    catch (OperationCanceledException)
+                    {
+                        // 🔥 超分被取消(用户翻页/切换模型),返回原图而不是抛出异常
+                        SuperResolutionLogger.Warning($"[自动超分取消] {entryName}, 使用原图");
+                    }
                     catch (Exception ex)
                     {
                         SuperResolutionLogger.Error($"[自动超分异常] {entryName}: {ex.Message}", ex);
