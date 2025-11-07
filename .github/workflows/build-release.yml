@@ -143,24 +143,6 @@ jobs:
             throw "Build failed with exit code $LASTEXITCODE"
           }
           
-      - name: Optimize with NetBeauty2
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          # Install NetBeauty2 if not available
-          if (-not (Get-Command nbeauty2 -ErrorAction SilentlyContinue)) {
-            dotnet tool install --global nulastudio.NetBeauty
-          }
-          
-          # Optimize package layout
-          nbeauty2 --usepatch --loglevel Detail "${{ steps.build-params.outputs.OUTPUT_DIR }}" Libraries
-          
-          # Remove backup file if exists
-          $bakFile = "${{ steps.build-params.outputs.OUTPUT_DIR }}/hostfxr.dll.bak"
-          if (Test-Path $bakFile) {
-            Remove-Item $bakFile
-          }
-          
       - name: Clean artifacts
         shell: pwsh
         run: |
