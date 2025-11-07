@@ -33,6 +33,9 @@ namespace NeeView
             _model.SelectedChanged +=
                 (s, e) => AppDispatcher.Invoke(() => Model_SelectedChanged(s, e));
 
+            _model.AddPropertyChanged(nameof(_model.IsMultiSelectMode),
+                (s, e) => RaisePropertyChanged(nameof(IsMultiSelectMode)));
+
             _thumbnailItemSize = new PanelThumbnailItemSize(Config.Current.Panels.ThumbnailItemProfile, 5.0 + 1.0, 4.0 + 1.0, new Size(18.0, 18.0));
             _thumbnailItemSize.SubscribePropertyChanged(nameof(_thumbnailItemSize.ItemSize), (s, e) => RaisePropertyChanged(nameof(ThumbnailItemSize)));
 
@@ -59,6 +62,9 @@ namespace NeeView
 
         // サムネイルが表示されている？
         public bool IsThumbnailVisible => _model.IsThumbnailVisible;
+
+        // 批量选择模式
+        public bool IsMultiSelectMode => _model.IsMultiSelectMode;
 
         public Size ThumbnailItemSize => _thumbnailItemSize.ItemSize;
 

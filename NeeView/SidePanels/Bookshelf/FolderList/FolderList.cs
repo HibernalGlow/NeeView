@@ -84,6 +84,7 @@ namespace NeeView
         private double _areaWidth = double.PositiveInfinity;
         private double _areaHeight = double.PositiveInfinity;
         private bool _isFocusAtOnce;
+        private bool _isMultiSelectMode;
 
         private readonly DisposableCollection _disposables = new();
 
@@ -280,6 +281,15 @@ namespace NeeView
         /// 検索許可？
         /// </summary>
         public bool IsFolderSearchEnabled => FolderCollection != null && FolderCollection.IsSearchEnabled;
+
+        /// <summary>
+        /// 批量选择模式
+        /// </summary>
+        public bool IsMultiSelectMode
+        {
+            get => _isMultiSelectMode;
+            set => SetProperty(ref _isMultiSelectMode, value);
+        }
 
 
         /// <summary>

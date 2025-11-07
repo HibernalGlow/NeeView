@@ -28,7 +28,6 @@ namespace NeeView
         private readonly BookshelfFolderList _model;
         private Dictionary<FolderOrder, string> _folderOrderList = AliasNameExtensions.GetAliasNameDictionary<FolderOrder>();
         private double _dpi = 1.0;
-        private bool _isMultiSelectMode = false;
 
 
         public FolderListViewModel(BookshelfFolderList model)
@@ -118,8 +117,8 @@ namespace NeeView
 
         public bool IsMultiSelectMode
         {
-            get => _isMultiSelectMode;
-            set => SetProperty(ref _isMultiSelectMode, value);
+            get => _model.IsMultiSelectMode;
+            set => _model.IsMultiSelectMode = value;
         }
 
 
