@@ -45,26 +45,10 @@ namespace NeeView.SuperResolution
 
         #region Properties
 
-        /// <summary>
-        /// 配置
-        /// </summary>
-        public SuperResolutionConfig Config => _config;
-
-        /// <summary>
-        /// 是否启用
-        /// </summary>
-        public bool IsEnabled
-        {
-            get => _config.IsEnabled;
-            set
-            {
-                if (_config.IsEnabled != value)
-                {
-                    _config.IsEnabled = value;
-                    RaisePropertyChanged();
-                }
-            }
-        }
+    /// <summary>
+    /// 配置
+    /// </summary>
+    public SuperResolutionConfig Config => _config;
 
         /// <summary>
         /// 是否正在处理
@@ -73,7 +57,14 @@ namespace NeeView.SuperResolution
         public bool IsProcessing
         {
             get => _isProcessing;
-            set => SetProperty(ref _isProcessing, value);
+            set
+            {
+                if (SetProperty(ref _isProcessing, value))
+                {
+                    // 通知 Command 重新评估 CanExecute
+                    System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+                }
+            }
         }
 
         /// <summary>
@@ -103,7 +94,15 @@ namespace NeeView.SuperResolution
         public bool IsServiceAvailable
         {
             get => _isServiceAvailable;
-            set => SetProperty(ref _isServiceAvailable, value);
+            set
+            {
+                if (SetProperty(ref _isServiceAvailable, value))
+                {
+                    // 通知 Command 重新评估 CanExecute
+                    System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+                    SuperResolutionLogger.Info($"服务可用状态已更新: {value}");
+                }
+            }
         }
 
         /// <summary>
@@ -153,7 +152,14 @@ namespace NeeView.SuperResolution
         public DetectedModel? SelectedModel
         {
             get => _selectedModel;
-            set => SetProperty(ref _selectedModel, value);
+            set
+            {
+                if (SetProperty(ref _selectedModel, value) && value != null)
+                {
+                    // 当模型选中时，自动更新配置
+                    UpdateConfigFromModel(value);
+                }
+            }
         }
 
         /// <summary>
@@ -199,16 +205,20 @@ namespace NeeView.SuperResolution
         /// </summary>
         private async Task InitializeServiceAsync()
         {
+            SuperResolutionLogger.Info("开始初始化超分辨率服务...");
             StatusMessage = "Initializing super resolution service...";
             IsServiceAvailable = await _service.InitializeAsync();
 
             if (IsServiceAvailable)
             {
                 StatusMessage = "Service ready";
+                SuperResolutionLogger.Info("服务初始化成功");
             }
             else
             {
-                StatusMessage = $"Service initialization failed: {_service.GetLastError()}";
+                var error = _service.GetLastError();
+                StatusMessage = $"Service initialization failed: {error}";
+                SuperResolutionLogger.Error($"服务初始化失败: {error}");
             }
         }
 
@@ -225,11 +235,18 @@ namespace NeeView.SuperResolution
         /// </summary>
         private async void ProcessCurrentImage()
         {
-            if (!CanProcessCurrentImage()) return;
+            SuperResolutionLogger.Info("========== ProcessCurrentImage 被调用 ==========");
+            
+            if (!CanProcessCurrentImage())
+            {
+                SuperResolutionLogger.Warning($"无法处理图片: IsServiceAvailable={IsServiceAvailable}, IsProcessing={IsProcessing}");
+                return;
+            }
 
             IsProcessing = true;
             Progress = 0;
             StatusMessage = "正在处理...";
+            SuperResolutionLogger.Info("开始超分辨率处理流程");
 
             try
             {
@@ -245,19 +262,60 @@ namespace NeeView.SuperResolution
                 var currentPage = book.CurrentPage;
                 SuperResolutionLogger.Info($"开始处理当前图片: {currentPage.EntryFullName}");
                 
-                // 获取图片数据
+                // 优先尝试从页面获取已解码的 BitmapSource (避免二次解码导致缩略)
                 byte[]? imageData = null;
-                
-                // 从 ArchiveEntry 获取原始数据
+                try
+                {
+                    var bitmapSource = ImageDataHelper.GetCurrentBitmapSource();
+                    if (bitmapSource != null)
+                    {
+                        SuperResolutionLogger.Info("找到已解码的 BitmapSource,优先使用它来生成无损 PNG 并传入超分服务");
+                        try
+                        {
+                            imageData = NeeView.SuperResolution.ImageFormatConverter.ConvertBitmapSourceToPng(bitmapSource);
+                            SuperResolutionLogger.Info($"从 BitmapSource 生成 PNG: {imageData.Length / 1024.0:F2} KB");
+                        }
+                        catch (Exception ex)
+                        {
+                            SuperResolutionLogger.Error($"将 BitmapSource 转为 PNG 失败: {ex.Message}", ex);
+                            imageData = null; // 继续尝试后续读取路径
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SuperResolutionLogger.Error($"尝试使用 BitmapSource 时出错: {ex.Message}", ex);
+                }
+
+                // 如果没有可用的 BitmapSource, 从 ArchiveEntry 或文件读取原始数据
                 var entry = currentPage.ArchiveEntry;
-                if (entry != null)
+                if ((imageData == null || imageData.Length == 0) && entry != null)
                 {
                     try
                     {
                         var fileProxy = await entry.GetFileProxyAsync(false, System.Threading.CancellationToken.None);
                         imageData = await System.IO.File.ReadAllBytesAsync(fileProxy.Path);
-                        
+
                         SuperResolutionLogger.Info($"成功读取图片数据: {imageData.Length / 1024.0:F2} KB");
+
+                        try
+                        {
+                            // 记录来源与图片基本信息，便于排查 AVIF/JXL 被提前缩放或转换的问题
+                            var place = entry.Archive?.GetPlace() ?? "(unknown place)";
+                            var archivePath = entry.Archive?.Path ?? "(no archive path)";
+                            var rootArchiveName = entry.RootArchiveName ?? "(root)";
+                            var entryName = entry.EntryFullName ?? entry.EntryLastName ?? "(entry)";
+                            var title = entry.EntryLastName ?? string.Empty;
+                            var fileSize = entry.Length >= 0 ? entry.Length : imageData.Length;
+                            var format = NeeView.SuperResolution.ImageFormatConverter.DetectFormat(imageData);
+
+                            SuperResolutionLogger.Info($"图片来源: place={place}, archivePath={archivePath}, rootArchive={rootArchiveName}");
+                            SuperResolutionLogger.Info($"图片条目: fullName={entryName}, title={title}, length={fileSize} bytes, detectedFormat={format}");
+                        }
+                        catch (Exception logEx)
+                        {
+                            SuperResolutionLogger.Error($"记录图片来源信息时出错: {logEx.Message}", logEx);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -378,6 +436,87 @@ namespace NeeView.SuperResolution
                     });
                 }
             });
+        }
+
+        /// <summary>
+        /// 根据选中的模型更新配置
+        /// </summary>
+        private void UpdateConfigFromModel(DetectedModel model)
+        {
+            try
+            {
+                SuperResolutionLogger.Info($"选中模型: {model.DisplayName}");
+                
+                // 根据模型类型设置算法类型
+                _config.AlgorithmType = model.ModelType switch
+                {
+                    ModelType.Waifu2x => SuperResolutionType.Waifu2x,
+                    ModelType.RealESRGAN => SuperResolutionType.RealESRGAN,
+                    ModelType.RealCUGAN => SuperResolutionType.RealCUGAN,
+                    _ => SuperResolutionType.Waifu2x
+                };
+
+                // 设置缩放倍数
+                if (model.Scale > 0)
+                {
+                    _config.ScaleFactor = model.Scale;
+                }
+
+                // 设置降噪等级
+                _config.NoiseLevel = model.DenoiseLevel;
+
+                // 根据模型名称映射到 SuperResolutionModel 枚举
+                _config.Model = MapDetectedModelToEnum(model);
+
+                SuperResolutionLogger.Info($"配置已更新: Type={_config.AlgorithmType}, Scale={_config.ScaleFactor}x, Denoise={_config.NoiseLevel}, Model={_config.Model}");
+            }
+            catch (Exception ex)
+            {
+                SuperResolutionLogger.Error($"更新配置失败: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// 将检测到的模型映射到配置枚举
+        /// </summary>
+        private SuperResolutionModel MapDetectedModelToEnum(DetectedModel model)
+        {
+            // 根据模型名称和类型映射
+            var modelName = model.ModelName.ToLowerInvariant();
+            
+            if (model.ModelType == ModelType.Waifu2x)
+            {
+                if (modelName.Contains("anime"))
+                {
+                    if (model.Scale == 2) return SuperResolutionModel.Waifu2xAnime2x;
+                    if (model.Scale == 4) return SuperResolutionModel.Waifu2xAnime4x;
+                }
+                else if (modelName.Contains("photo"))
+                {
+                    if (model.Scale == 2) return SuperResolutionModel.Waifu2xPhoto2x;
+                    if (model.Scale == 4) return SuperResolutionModel.Waifu2xPhoto4x;
+                }
+            }
+            else if (model.ModelType == ModelType.RealESRGAN)
+            {
+                if (modelName.Contains("anime"))
+                {
+                    return SuperResolutionModel.RealESRGANAnime4x;
+                }
+                else
+                {
+                    return SuperResolutionModel.RealESRGANGeneral4x;
+                }
+            }
+            else if (model.ModelType == ModelType.RealCUGAN)
+            {
+                if (model.Scale == 2) return SuperResolutionModel.RealCUGANAnime2x;
+                if (model.Scale == 3) return SuperResolutionModel.RealCUGANAnime3x;
+                if (model.Scale == 4) return SuperResolutionModel.RealCUGANAnime4x;
+            }
+
+            // 默认返回
+            return SuperResolutionModel.Waifu2xAnime2x;
         }
 
         #endregion

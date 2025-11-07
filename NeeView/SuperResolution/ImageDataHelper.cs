@@ -87,6 +87,22 @@ namespace NeeView.SuperResolution
                 // 尝试从PageContent获取BitmapSource
                 if (content.Data is BitmapSource bitmapSource)
                 {
+                    try
+                    {
+                        // 记录 BitmapSource 的尺寸与像素格式，帮助判断是否为缩略帧
+                        SuperResolutionLogger.Info($"[GetCurrentBitmapSource] BitmapSource: {bitmapSource.PixelWidth}x{bitmapSource.PixelHeight}, {bitmapSource.Format}");
+
+                        // 记录页面中原始图片信息(若可用)
+                        var fileName = page.EntryLastName ?? "(unknown)";
+                        var origW = (int?)(content.PictureInfo?.OriginalSize.Width) ?? 0;
+                        var origH = (int?)(content.PictureInfo?.OriginalSize.Height) ?? 0;
+                        SuperResolutionLogger.Info($"[GetCurrentBitmapSource] Page info: file={fileName}, originalSize={origW}x{origH}");
+                    }
+                    catch (Exception ex)
+                    {
+                        SuperResolutionLogger.Error($"记录 BitmapSource 信息失败: {ex.Message}", ex);
+                    }
+
                     return bitmapSource;
                 }
 
