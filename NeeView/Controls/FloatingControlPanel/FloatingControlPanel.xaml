@@ -7,7 +7,8 @@
              xmlns:properties="clr-namespace:NeeView.Properties"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance local:FloatingControlPanelViewModel}"
-             d:DesignHeight="120" d:DesignWidth="400">
+             d:DesignHeight="120" d:DesignWidth="400"
+             Background="Transparent">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
@@ -43,31 +44,19 @@
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-
-        <!-- 折叠后的侧边栏按钮 -->
-        <Border Grid.Column="0" x:Name="CollapsedButton" 
-                Background="{DynamicResource Panel.Background}"
-                BorderBrush="{DynamicResource Panel.Border}"
-                BorderThickness="1"
-                CornerRadius="0,4,4,0"
-                Visibility="{Binding IsCollapsed, Converter={StaticResource BooleanToVisibilityConverter}}"
-                MouseLeftButtonDown="CollapsedButton_MouseLeftButtonDown">
-            <TextBlock Text="◀" FontSize="14" Margin="4,8" VerticalAlignment="Center"
-                       Foreground="{DynamicResource Panel.Foreground}"/>
-        </Border>
-
         <!-- 展开的控制面板 -->
-        <Border Grid.Column="1" x:Name="ExpandedPanel"
+        <Border x:Name="ExpandedPanel"
                 Background="{DynamicResource Panel.Background}"
                 BorderBrush="{DynamicResource Panel.Border}"
                 BorderThickness="1"
                 CornerRadius="4"
                 Padding="8"
-                Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                Opacity="{Binding PanelOpacity}"
+                Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}"
+                MouseLeftButtonDown="ExpandedPanel_MouseLeftButtonDown"
+                MouseMove="ExpandedPanel_MouseMove"
+                MouseLeftButtonUp="ExpandedPanel_MouseLeftButtonUp"
+                Cursor="{Binding DragCursor}">
             
             <Grid>
                 <Grid.RowDefinitions>
@@ -77,7 +66,13 @@
                 </Grid.RowDefinitions>
 
                 <!-- 标题栏 -->
-                <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                <DockPanel Grid.Row="0" Margin="0,0,0,4" Background="Transparent">
+                    <Button DockPanel.Dock="Right" Content="⚙" 
+                            Style="{StaticResource ControlButtonStyle}"
+                            Width="24" Height="24"
+                            Margin="2,0,0,0"
+                            ToolTip="{properties:TextBinding FloatingControl.Settings.ToolTip}"
+                            Command="{Binding ShowSettingsCommand}"/>
                     <Button DockPanel.Dock="Right" Content="▶" 
                             Style="{StaticResource ControlButtonStyle}"
                             Width="24" Height="24"
@@ -86,6 +81,7 @@
                     <TextBlock Text="{properties:TextBinding FloatingControl.Title}" 
                                FontWeight="Bold"
                                VerticalAlignment="Center"
+                               Margin="4,0,0,0"
                                Foreground="{DynamicResource Panel.Foreground}"/>
                 </DockPanel>
 
@@ -187,6 +183,61 @@
                     </StackPanel>
                 </Grid>
             </Grid>
+        </Border>
+
+        <!-- 设置面板 -->
+        <Border x:Name="SettingsPanel"
+                Background="{DynamicResource Panel.Background}"
+                BorderBrush="{DynamicResource Panel.Border}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12"
+                Opacity="{Binding PanelOpacity}"
+                Visibility="{Binding IsSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel MinWidth="200">
+                <DockPanel Margin="0,0,0,8">
+                    <Button DockPanel.Dock="Right" Content="✕" 
+                            Width="24" Height="24"
+                            ToolTip="{properties:TextBinding Word.Close}"
+                            Command="{Binding CloseSettingsCommand}"/>
+                    <TextBlock Text="{properties:TextBinding FloatingControl.Settings}" 
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource Panel.Foreground}"/>
+                </DockPanel>
+
+                <!-- 透明度设置 -->
+                <TextBlock Text="{properties:TextBinding FloatingControl.Opacity}" 
+                           Margin="0,4,0,2"
+                           Foreground="{DynamicResource Panel.Foreground}"/>
+                <DockPanel Margin="0,0,0,8">
+                    <TextBlock DockPanel.Dock="Right" 
+                               Text="{Binding PanelOpacity, StringFormat={}{0:P0}}"
+                               Width="40"
+                               TextAlignment="Right"
+                               Foreground="{DynamicResource Panel.Foreground}"/>
+                    <Slider Minimum="0.3" Maximum="1.0" 
+                            Value="{Binding PanelOpacity}"
+                            TickFrequency="0.1"
+                            IsSnapToTickEnabled="True"/>
+                </DockPanel>
+
+                <!-- 默认模式 -->
+                <TextBlock Text="{properties:TextBinding FloatingControl.DefaultMode}" 
+                           Margin="0,4,0,2"
+                           Foreground="{DynamicResource Panel.Foreground}"/>
+                <ComboBox SelectedIndex="{Binding DefaultModeIndex}"
+                          Margin="0,0,0,8">
+                    <ComboBoxItem Content="{properties:TextBinding FloatingControl.Tab.Auto}"/>
+                    <ComboBoxItem Content="{properties:TextBinding FloatingControl.Tab.Image}"/>
+                    <ComboBoxItem Content="{properties:TextBinding FloatingControl.Tab.Video}"/>
+                </ComboBox>
+
+                <!-- 启用拖动 -->
+                <CheckBox Content="{properties:TextBinding FloatingControl.EnableDrag}"
+                          IsChecked="{Binding IsDraggable}"
+                          Margin="0,4"/>
+            </StackPanel>
         </Border>
     </Grid>
 </UserControl>

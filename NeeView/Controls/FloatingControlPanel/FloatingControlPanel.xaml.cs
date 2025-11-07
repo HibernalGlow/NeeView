@@ -10,6 +10,8 @@ namespace NeeView
     public partial class FloatingControlPanel : UserControl
     {
         private FloatingControlPanelViewModel? _vm;
+        private bool _isDragging = false;
+        private Point _dragStartPoint;
 
         public FloatingControlPanel()
         {
@@ -34,10 +36,38 @@ namespace NeeView
             _vm = null;
         }
 
-        private void CollapsedButton_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void ExpandedPanel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            _vm?.ExpandCommand.Execute(null);
-            e.Handled = true;
+            if (_vm?.IsDraggable == true && e.ClickCount == 1)
+            {
+                _isDragging = true;
+                _dragStartPoint = e.GetPosition(this.Parent as UIElement);
+                ExpandedPanel.CaptureMouse();
+                e.Handled = true;
+            }
+        }
+
+        private void ExpandedPanel_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isDragging && _vm?.IsDraggable == true)
+            {
+                var currentPosition = e.GetPosition(this.Parent as UIElement);
+                var offset = currentPosition - _dragStartPoint;
+                
+                _vm.OffsetX += offset.X;
+                _vm.OffsetY += offset.Y;
+                
+                _dragStartPoint = currentPosition;
+            }
+        }
+
+        private void ExpandedPanel_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isDragging)
+            {
+                _isDragging = false;
+                ExpandedPanel.ReleaseMouseCapture();
+            }
         }
     }
 }

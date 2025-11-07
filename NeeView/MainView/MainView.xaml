@@ -77,11 +77,45 @@
             </Grid.ContextMenu>
         </Grid>
 
+        <!-- Floating Panel Sidebar Toggle Button -->
+        <Border x:Name="FloatingPanelToggle"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Background="{DynamicResource Panel.Background}"
+                BorderBrush="{DynamicResource Panel.Border}"
+                BorderThickness="1,1,0,1"
+                CornerRadius="4,0,0,4"
+                Padding="4,8"
+                Margin="0,0,0,0"
+                Opacity="0.7"
+                Cursor="Hand"
+                MouseEnter="FloatingPanelToggle_MouseEnter"
+                MouseLeave="FloatingPanelToggle_MouseLeave"
+                MouseLeftButtonDown="FloatingPanelToggle_Click">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ElementName=FloatingControlPanel, Path=DataContext.IsCollapsed}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <TextBlock Text="◀" FontSize="14" 
+                       Foreground="{DynamicResource Panel.Foreground}"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
         <!-- Floating Control Panel -->
         <local:FloatingControlPanel x:Name="FloatingControlPanel"
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center"
-                                    Margin="10"/>
+                                    Margin="10">
+            <local:FloatingControlPanel.RenderTransform>
+                <TranslateTransform X="{Binding OffsetX}" Y="{Binding OffsetY}"/>
+            </local:FloatingControlPanel.RenderTransform>
+        </local:FloatingControlPanel>
 
     </Grid>
 </UserControl>

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace NeeView
@@ -27,10 +28,15 @@ namespace NeeView
         private readonly DispatcherTimer _timer;
         private FloatingControlMode _mode = FloatingControlMode.Auto;
         private bool _isCollapsed = false;
+        private bool _isSettingsVisible = false;
         private double _mediaPosition;
         private string _currentTime = "00:00";
         private string _totalTime = "00:00";
         private double _playbackSpeed = 1.0;
+        private double _panelOpacity = 0.85;
+        private bool _isDraggable = true;
+        private double _offsetX = 0;
+        private double _offsetY = 0;
         private bool _disposedValue;
 
         public FloatingControlPanelViewModel()
@@ -84,6 +90,56 @@ namespace NeeView
         }
 
         public bool IsExpanded => !IsCollapsed;
+
+        public bool IsSettingsVisible
+        {
+            get => _isSettingsVisible;
+            set => SetProperty(ref _isSettingsVisible, value);
+        }
+
+        public double PanelOpacity
+        {
+            get => _panelOpacity;
+            set => SetProperty(ref _panelOpacity, value);
+        }
+
+        public bool IsDraggable
+        {
+            get => _isDraggable;
+            set
+            {
+                if (SetProperty(ref _isDraggable, value))
+                {
+                    RaisePropertyChanged(nameof(DragCursor));
+                }
+            }
+        }
+
+        public Cursor DragCursor => IsDraggable ? Cursors.SizeAll : Cursors.Arrow;
+
+        public double OffsetX
+        {
+            get => _offsetX;
+            set => SetProperty(ref _offsetX, value);
+        }
+
+        public double OffsetY
+        {
+            get => _offsetY;
+            set => SetProperty(ref _offsetY, value);
+        }
+
+        public int DefaultModeIndex
+        {
+            get => (int)_mode;
+            set
+            {
+                if (value >= 0 && value <= 2)
+                {
+                    Mode = (FloatingControlMode)value;
+                }
+            }
+        }
 
         public bool IsImageMode
         {
@@ -202,6 +258,14 @@ namespace NeeView
         private RelayCommand? _expandCommand;
         public RelayCommand ExpandCommand =>
             _expandCommand ??= new RelayCommand(() => IsCollapsed = false);
+
+        private RelayCommand? _showSettingsCommand;
+        public RelayCommand ShowSettingsCommand =>
+            _showSettingsCommand ??= new RelayCommand(() => IsSettingsVisible = true);
+
+        private RelayCommand? _closeSettingsCommand;
+        public RelayCommand CloseSettingsCommand =>
+            _closeSettingsCommand ??= new RelayCommand(() => IsSettingsVisible = false);
 
         // 图片控制命令
         private RelayCommand? _prevPageCommand;
