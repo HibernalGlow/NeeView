@@ -799,36 +799,49 @@ namespace NeeView.SuperResolution
                 return;
             }
 
-            // 🔥 新方案:通过重新加载当前页来应用/取消超分
-            // 1. 临时修改 AutoApplyOnView 配置
+            // 🔥 方案: 临时修改配置 + 清除缓存 + 重新加载
             var originalAutoApply = _config.AutoApplyOnView;
             _config.AutoApplyOnView = EnableCurrentImageSuperResolution;
 
             try
             {
-                // 2. 重新加载当前页面
                 var book = BookOperation.Current.Book;
                 if (book != null)
                 {
                     var currentPage = book.CurrentPage;
                     if (currentPage != null)
                     {
-                        SuperResolutionLogger.Info($"重新加载当前页: {CurrentImagePath}, 超分={EnableCurrentImageSuperResolution}");
+                        SuperResolutionLogger.Info($"切换当前页超分: {CurrentImagePath}, 启用={EnableCurrentImageSuperResolution}");
                         
-                        // 强制重新加载页面内容
+                        // 1. 卸载当前页内容(清除图片缓存)
                         currentPage.Content.Unload();
-                        await Task.Delay(100); // 等待卸载完成
                         
-                        // 触发重新加载
-                        var entry = currentPage.ArchiveEntry;
-                        BookHub.Current.RequestLoad(this, entry.SystemPath, entry.EntryName, BookLoadOption.ReLoad, false);
+                        // 2. 等待卸载完成
+                        await Task.Delay(100);
+                        
+                        // 3. 触发重新加载(不改变浏览位置)
+                        await App.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            // 使用 BookControl 的重新加载方法
+                            BookOperation.Current.BookControl.ReLoad();
+                        });
+
+                        // 4. 显示 Toast 提示
+                        await Task.Delay(200); // 等待加载开始
+                        var statusText = EnableCurrentImageSuperResolution ? "✅ 已启用超分" : "🔄 已切换到原图";
+                        ToastService.Current.Show(new Toast(statusText, null, ToastIcon.Information));
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                SuperResolutionLogger.Error($"切换超分失败: {ex.Message}", ex);
+                ToastService.Current.Show(new Toast("❌ 切换超分失败", null, ToastIcon.Error));
+            }
             finally
             {
-                // 3. 恢复原始配置
-                await Task.Delay(500); // 等待加载完成
+                // 恢复原始配置
+                await Task.Delay(100);
                 _config.AutoApplyOnView = originalAutoApply;
             }
         }
