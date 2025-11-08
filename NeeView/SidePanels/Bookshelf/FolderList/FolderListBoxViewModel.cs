@@ -116,16 +116,13 @@ namespace NeeView
 
                     try
                     {
-                        // 删除到回收站
+                        // 使用与右键菜单相同的删除函数
                         var path = item.TargetPath.SimplePath;
                         if (string.IsNullOrEmpty(path)) return;
 
                         if (File.Exists(path) || Directory.Exists(path))
                         {
-                            Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
-                                path, 
-                                Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, 
-                                Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                            await FileIO.DeleteAsync(path);
                             
                             // 刷新列表
                             await _model.RefreshAsync(false, false);
