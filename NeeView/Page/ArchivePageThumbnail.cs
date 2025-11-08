@@ -19,26 +19,6 @@ namespace NeeView
             token.ThrowIfCancellationRequested();
             NVDebug.AssertMTA();
 
-            // .nov 文件特殊处理:直接作为视频文件生成缩略图
-            // .nov 文件本身就是视频文件,只是加了 .nov 后缀
-            var archiveEntry = _content.ArchiveEntry;
-            if (archiveEntry.SystemPath.EndsWith(".nov", System.StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    // 直接使用 .nov 文件生成视频缩略图
-                    var thumbnailRaw = await MediaPageThumbnail.GenerateVideoThumbnailAsync(archiveEntry.SystemPath, token);
-                    if (thumbnailRaw != null)
-                    {
-                        return new ThumbnailSource(thumbnailRaw);
-                    }
-                }
-                catch
-                {
-                    // 如果生成失败，继续使用默认处理
-                }
-            }
-
             var pageContent = await ArchivePageUtility.GetSelectedPageContentAsync(_content.ArchiveEntry, false, token);
             pageContent.Decrypt = false;
             if (pageContent is ArchivePageContent)
