@@ -91,22 +91,6 @@ namespace NeeView
             _vm = new FileInformationViewModel(model);
             this.DataContext = _vm;
 
-            // Initialize database info view
-            var dbViewModel = new DatabaseInfoViewModel();
-            this.DatabaseInfoPanel.DataContext = dbViewModel;
-
-            // Update database info when selection changes
-            if (_vm != null)
-            {
-                _vm.PropertyChanged += (s, e) =>
-                {
-                    if (e.PropertyName == nameof(FileInformationViewModel.SelectedItem))
-                    {
-                        dbViewModel.SetSource(_vm.SelectedItem);
-                    }
-                };
-            }
-
             this.IsVisibleChanged += FileInformationView_IsVisibleChanged;
 
             Debug.WriteLine($"> Create: {nameof(FileInformationView)}");

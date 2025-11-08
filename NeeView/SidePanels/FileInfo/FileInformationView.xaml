@@ -117,15 +117,6 @@
                 </ListBox.ItemTemplate>
             </nw:ListBoxExtended>
 
-            <!-- Database Info Panel -->
-            <Border DockPanel.Dock="Top" 
-                    Background="{DynamicResource Panel.Background.Alter}" 
-                    BorderBrush="{DynamicResource Panel.Border}" 
-                    BorderThickness="0,1,0,1" 
-                    Margin="0,10,0,10">
-                <local:DatabaseInfoView x:Name="DatabaseInfoPanel" />
-            </Border>
-
             <local:FileInformationContent Source="{Binding SelectedItem}" Margin="0,10,0,0" />
 
         </DockPanel>

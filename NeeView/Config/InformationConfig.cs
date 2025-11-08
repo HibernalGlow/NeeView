@@ -158,6 +158,9 @@ namespace NeeView
 
         private string _translationDatabasePath = @"D:\1SoftLink\AppData\Roaming\exhentai-manga-manager\translations.db";
         private string _metadataDatabasePath = @"D:\1SoftLink\AppData\Roaming\exhentai-manga-manager\database.sqlite";
+        private string _tagTranslationPath = @"D:\1SoftLink\AppData\Roaming\exhentai-manga-manager\tag-translations.json";
+        private bool _useTranslation = true;
+        private bool _useTagTranslation = true;
 
         [PropertyPath(FileDialogType = FileDialogType.SaveFile, Filter = "SQLite Database|*.db;*.sqlite|All Files|*.*")]
         [PropertyMember]
@@ -173,6 +176,28 @@ namespace NeeView
         {
             get { return _metadataDatabasePath; }
             set { SetProperty(ref _metadataDatabasePath, value); }
+        }
+
+        [PropertyPath(FileDialogType = FileDialogType.SaveFile, Filter = "JSON File|*.json|All Files|*.*")]
+        [PropertyMember]
+        public string TagTranslationPath
+        {
+            get { return _tagTranslationPath; }
+            set { SetProperty(ref _tagTranslationPath, value); }
+        }
+
+        [PropertyMember]
+        public bool UseTranslation
+        {
+            get { return _useTranslation; }
+            set { SetProperty(ref _useTranslation, value); }
+        }
+
+        [PropertyMember]
+        public bool UseTagTranslation
+        {
+            get { return _useTagTranslation; }
+            set { SetProperty(ref _useTagTranslation, value); }
         }
 
         #endregion Database

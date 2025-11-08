@@ -23,6 +23,7 @@ namespace NeeView
                 nameof(NavigatePanel) => new NavigatePanel(NavigateModel.Current),
                 nameof(ImageEffectPanel) => new ImageEffectPanel(ImageEffect.Current),
                 "SuperResolutionPanel" => new SuperResolutionPanel(Config.Current.SuperResolution),
+                nameof(DatabaseInfoPanel) => new DatabaseInfoPanel(Config.Current.Information),
                 nameof(BookmarkPanel) => new BookmarkPanel(BookmarkFolderList.Current),
                 nameof(PageListPanel) => new PageListPanel(PageList.Current),
                 nameof(PlaylistPanel) => new PlaylistPanel(PlaylistHub.Current),
