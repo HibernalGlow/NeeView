@@ -8,12 +8,15 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 
 namespace NeeView
 {
@@ -21,6 +24,7 @@ namespace NeeView
     {
         private readonly FileInformation _model;
         private FileInformationSource? _selectedItem;
+        private RelayCommand? _exportImageCommand;
 
 
         public FileInformationViewModel(FileInformation model)
@@ -98,5 +102,71 @@ namespace NeeView
                 SelectedItem = FileInformationCollection[index];
             }
         }
+
+
+        #region Export Command
+
+        public RelayCommand ExportImageCommand
+        {
+            get { return _exportImageCommand ?? (_exportImageCommand = new RelayCommand(ExportImageExecute)); }
+        }
+
+        private async void ExportImageExecute()
+        {
+            if (SelectedItem is null) return;
+
+            var page = SelectedItem.Page;
+            if (page?.Content is null) return;
+
+            // Get the image source
+            var imageSource = (SelectedItem.ViewContent.ViewSource as IHasImageSource)?.ImageSource as BitmapSource;
+            if (imageSource is null) return;
+
+            // Show save file dialog
+            var dialog = new SaveFileDialog
+            {
+                Filter = "PNG files (*.png)|*.png|JPEG files (*.jpg)|*.jpg|All files (*.*)|*.*",
+                FileName = Path.GetFileNameWithoutExtension(page.EntryName) + ".png"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    await Task.Run(() =>
+                    {
+                        using var fileStream = new FileStream(dialog.FileName, FileMode.Create);
+                        
+                        BitmapEncoder encoder;
+                        var extension = Path.GetExtension(dialog.FileName).ToLowerInvariant();
+                        
+                        if (extension == ".jpg" || extension == ".jpeg")
+                        {
+                            encoder = new JpegBitmapEncoder
+                            {
+                                QualityLevel = 80  // Default quality
+                            };
+                        }
+                        else
+                        {
+                            encoder = new PngBitmapEncoder();
+                        }
+
+                        encoder.Frames.Add(BitmapFrame.Create(imageSource));
+                        encoder.Save(fileStream);
+                    });
+
+                    InfoMessage.Current.SetMessage(InfoMessageType.Notify, 
+                        string.Format(Properties.TextResources.GetString("ExportImage.Message.Success"), 
+                        Path.GetFileName(dialog.FileName)));
+                }
+                catch (Exception ex)
+                {
+                    new MessageDialog(ex.Message, Properties.TextResources.GetString("Word.Error")).ShowDialog();
+                }
+            }
+        }
+
+        #endregion Export Command
     }
 }

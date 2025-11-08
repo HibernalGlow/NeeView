@@ -1,5 +1,6 @@
 ﻿using NeeLaboratory.ComponentModel;
 using NeeView.Properties;
+using NeeView.Windows.Controls;
 using NeeView.Windows.Property;
 using System;
 using System.Collections.Generic;
@@ -121,6 +122,60 @@ namespace NeeView
             get { return IsVisibleGroup(InformationGroup.Extras); }
             set { SetVisibleGroup(InformationGroup.Extras, value); }
         }
+
+        #region Info Overlay
+
+        private bool _isInfoOverlayEnabled = false;
+        private double _infoOverlayFontSize = 10.0;
+        private double _infoOverlayOpacity = 0.7;
+
+        [PropertyMember]
+        public bool IsInfoOverlayEnabled
+        {
+            get { return _isInfoOverlayEnabled; }
+            set { SetProperty(ref _isInfoOverlayEnabled, value); }
+        }
+
+        [PropertyRange(8.0, 20.0, TickFrequency = 1)]
+        [PropertyMember]
+        public double InfoOverlayFontSize
+        {
+            get { return _infoOverlayFontSize; }
+            set { SetProperty(ref _infoOverlayFontSize, value); }
+        }
+
+        [PropertyRange(0.3, 1.0, TickFrequency = 0.1)]
+        [PropertyMember]
+        public double InfoOverlayOpacity
+        {
+            get { return _infoOverlayOpacity; }
+            set { SetProperty(ref _infoOverlayOpacity, value); }
+        }
+
+        #endregion Info Overlay
+
+        #region Database
+
+        private string _translationDatabasePath = @"D:\1SoftLink\AppData\Roaming\exhentai-manga-manager\translations.db";
+        private string _metadataDatabasePath = @"D:\1SoftLink\AppData\Roaming\exhentai-manga-manager\database.sqlite";
+
+        [PropertyPath(FileDialogType = FileDialogType.SaveFile, Filter = "SQLite Database|*.db;*.sqlite|All Files|*.*")]
+        [PropertyMember]
+        public string TranslationDatabasePath
+        {
+            get { return _translationDatabasePath; }
+            set { SetProperty(ref _translationDatabasePath, value); }
+        }
+
+        [PropertyPath(FileDialogType = FileDialogType.SaveFile, Filter = "SQLite Database|*.db;*.sqlite|All Files|*.*")]
+        [PropertyMember]
+        public string MetadataDatabasePath
+        {
+            get { return _metadataDatabasePath; }
+            set { SetProperty(ref _metadataDatabasePath, value); }
+        }
+
+        #endregion Database
 
         #region HiddenParameters
 

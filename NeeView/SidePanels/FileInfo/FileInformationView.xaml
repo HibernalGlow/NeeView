@@ -32,6 +32,7 @@
             <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityHiddenConverter" False="Hidden" />
             <local:NullableToVisibilityConverter x:Key="NullableToVisibilityConverter" />
             <local:PendingCountToOpacityConverter x:Key="PendingCountToOpacityConverter" />
+            <local:FileInfoOverlayConverter x:Key="FileInfoOverlayConverter" />
 
             <Style x:Key="PageMarkStyle" TargetType="Image">
                 <Setter Property="Width" Value="16" />
@@ -53,6 +54,17 @@
 
             <DockPanel DockPanel.Dock="Top" LastChildFill="False" KeyboardNavigation.TabNavigation="Local">
                 <local:MoreMenuButton Description="{Binding MoreMenuDescription}" DockPanel.Dock="Right" />
+                <ToggleButton DockPanel.Dock="Right" Style="{StaticResource IconToggleButton}" Margin="2,0"
+                              IsChecked="{Binding Source={x:Static local:Config.Current}, Path=Information.IsInfoOverlayEnabled}"
+                              ToolTip="显示/隐藏缩略图信息覆盖层">
+                    <Path Data="M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z" 
+                          Fill="{DynamicResource Panel.Foreground}" Width="16" Height="16" Stretch="Uniform" />
+                </ToggleButton>
+                <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Command="{Binding ExportImageCommand}" Margin="2,0"
+                        ToolTip="{properties:TextBinding ExportImageAsCommand.Menu}">
+                    <Path Data="M19,12V19H5V12H3V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19M13,3V12L15.5,9.5L17,11L12,16L7,11L8.5,9.5L11,12V3H13Z" 
+                          Fill="{DynamicResource Panel.Foreground}" Width="16" Height="16" Stretch="Uniform" />
+                </Button>
             </DockPanel>
 
             <nw:ListBoxExtended x:Name="ThumbnailListBox" DockPanel.Dock="Top" Style="{StaticResource NVListBox}" Template="{StaticResource NoScroll}" ItemsSource="{Binding FileInformationCollection}"
@@ -91,10 +103,28 @@
                                     </Image>
                                 </Border>
                             </Grid>
+                            <!-- Info Overlay -->
+                            <Border HorizontalAlignment="Stretch" VerticalAlignment="Top" 
+                                    Background="#CC000000" Padding="2"
+                                    Visibility="{Binding Source={x:Static local:Config.Current}, Path=Information.IsInfoOverlayEnabled, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    Opacity="{Binding Source={x:Static local:Config.Current}, Path=Information.InfoOverlayOpacity}">
+                                <TextBlock Text="{Binding Converter={StaticResource FileInfoOverlayConverter}}" 
+                                           FontSize="{Binding Source={x:Static local:Config.Current}, Path=Information.InfoOverlayFontSize}"
+                                           Foreground="White" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="50" />
+                            </Border>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </nw:ListBoxExtended>
+
+            <!-- Database Info Panel -->
+            <Border DockPanel.Dock="Top" 
+                    Background="{DynamicResource Panel.Background.Alter}" 
+                    BorderBrush="{DynamicResource Panel.Border}" 
+                    BorderThickness="0,1,0,1" 
+                    Margin="0,10,0,10">
+                <local:DatabaseInfoView x:Name="DatabaseInfoPanel" />
+            </Border>
 
             <local:FileInformationContent Source="{Binding SelectedItem}" Margin="0,10,0,0" />
 
