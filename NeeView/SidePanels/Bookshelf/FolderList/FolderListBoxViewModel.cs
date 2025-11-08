@@ -83,6 +83,7 @@ namespace NeeView
         private RelayCommand? _toggleFolderRecursive;
         private RelayCommand? _newFolderCommand;
         private RelayCommand<FolderItem>? _deleteItemCommand;
+        private RelayCommand<FolderItem>? _openItemCommand;
 
 
         public RelayCommand ToggleFolderRecursive
@@ -133,6 +134,44 @@ namespace NeeView
                         new MessageDialog(
                             $"删除失败: {ex.Message}",
                             "删除错误")
+                        {
+                            Owner = MainWindow.Current
+                        }.ShowDialog();
+                    }
+                }
+            }
+        }
+
+        public RelayCommand<FolderItem> OpenItemCommand
+        {
+            get
+            {
+                return _openItemCommand = _openItemCommand ?? new RelayCommand<FolderItem>(Execute);
+
+                void Execute(FolderItem? item)
+                {
+                    if (item == null) return;
+
+                    try
+                    {
+                        var path = item.TargetPath.SimplePath;
+                        if (string.IsNullOrEmpty(path)) return;
+
+                        if (File.Exists(path))
+                        {
+                            // 使用系统默认方式打开文件
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = path,
+                                UseShellExecute = true
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        new MessageDialog(
+                            $"打开失败: {ex.Message}",
+                            "打开错误")
                         {
                             Owner = MainWindow.Current
                         }.ShowDialog();
