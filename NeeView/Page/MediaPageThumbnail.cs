@@ -48,7 +48,7 @@ namespace NeeView
             return new ThumbnailSource(thumbnailRaw);
         }
 
-        private async ValueTask<byte[]?> GenerateVideoThumbnailAsync(string path, CancellationToken token)
+        public static async ValueTask<byte[]?> GenerateVideoThumbnailAsync(string path, CancellationToken token)
         {
             return await Task.Run(() =>
             {
