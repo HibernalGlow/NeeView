@@ -121,6 +121,12 @@ namespace NeeView
             set => _model.IsMultiSelectMode = value;
         }
 
+        public bool IsDeleteMode
+        {
+            get => _model.IsDeleteMode;
+            set => _model.IsDeleteMode = value;
+        }
+
 
         #region Commands
 
@@ -141,6 +147,7 @@ namespace NeeView
         private RelayCommand? _toggleVisibleFoldersTree;
         private RelayCommand? _clearHistoryInPlace;
         private RelayCommand? _toggleMultiSelectMode;
+        private RelayCommand? _toggleDeleteMode;
 
         public string MoveToHomeToolTip { get; } = CommandTools.CreateToolTipText("Bookshelf.Home.ToolTip", Key.Home, ModifierKeys.Alt);
         public string MoveToPreviousToolTip { get; } = CommandTools.CreateToolTipText("Bookshelf.Back.ToolTip", Key.Left, ModifierKeys.Alt);
@@ -284,6 +291,19 @@ namespace NeeView
                 void Execute()
                 {
                     IsMultiSelectMode = !IsMultiSelectMode;
+                }
+            }
+        }
+
+        public RelayCommand ToggleDeleteMode
+        {
+            get
+            {
+                return _toggleDeleteMode = _toggleDeleteMode ?? new RelayCommand(Execute);
+
+                void Execute()
+                {
+                    IsDeleteMode = !IsDeleteMode;
                 }
             }
         }

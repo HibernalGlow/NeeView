@@ -291,6 +291,17 @@ namespace NeeView
             set => SetProperty(ref _isMultiSelectMode, value);
         }
 
+        private bool _isDeleteMode;
+
+        /// <summary>
+        /// 删除模式 (显示删除按钮)
+        /// </summary>
+        public bool IsDeleteMode
+        {
+            get => _isDeleteMode;
+            set => SetProperty(ref _isDeleteMode, value);
+        }
+
 
         /// <summary>
         /// 現在のフォルダー

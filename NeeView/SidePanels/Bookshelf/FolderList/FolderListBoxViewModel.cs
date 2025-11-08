@@ -3,6 +3,7 @@ using NeeLaboratory.Windows.Input;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -36,6 +37,9 @@ namespace NeeView
             _model.AddPropertyChanged(nameof(_model.IsMultiSelectMode),
                 (s, e) => RaisePropertyChanged(nameof(IsMultiSelectMode)));
 
+            _model.AddPropertyChanged(nameof(_model.IsDeleteMode),
+                (s, e) => RaisePropertyChanged(nameof(IsDeleteMode)));
+
             _thumbnailItemSize = new PanelThumbnailItemSize(Config.Current.Panels.ThumbnailItemProfile, 5.0 + 1.0, 4.0 + 1.0, new Size(18.0, 18.0));
             _thumbnailItemSize.SubscribePropertyChanged(nameof(_thumbnailItemSize.ItemSize), (s, e) => RaisePropertyChanged(nameof(ThumbnailItemSize)));
 
@@ -66,6 +70,9 @@ namespace NeeView
         // 批量选择模式
         public bool IsMultiSelectMode => _model.IsMultiSelectMode;
 
+        // 删除模式
+        public bool IsDeleteMode => _model.IsDeleteMode;
+
         public Size ThumbnailItemSize => _thumbnailItemSize.ItemSize;
 
         public PanelListItemDetailToolTip DetailToolTip { get; }
@@ -75,6 +82,7 @@ namespace NeeView
 
         private RelayCommand? _toggleFolderRecursive;
         private RelayCommand? _newFolderCommand;
+        private RelayCommand<FolderItem>? _deleteItemCommand;
 
 
         public RelayCommand ToggleFolderRecursive
@@ -92,6 +100,46 @@ namespace NeeView
                 void Execute()
                 {
                     _model.NewFolder();
+                }
+            }
+        }
+
+        public RelayCommand<FolderItem> DeleteItemCommand
+        {
+            get
+            {
+                return _deleteItemCommand = _deleteItemCommand ?? new RelayCommand<FolderItem>(Execute);
+
+                async void Execute(FolderItem? item)
+                {
+                    if (item == null) return;
+
+                    try
+                    {
+                        // 删除到回收站
+                        var path = item.TargetPath.SimplePath;
+                        if (string.IsNullOrEmpty(path)) return;
+
+                        if (File.Exists(path) || Directory.Exists(path))
+                        {
+                            Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
+                                path, 
+                                Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, 
+                                Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                            
+                            // 刷新列表
+                            await _model.RefreshAsync(false, false);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        new MessageDialog(
+                            $"删除失败: {ex.Message}",
+                            "删除错误")
+                        {
+                            Owner = MainWindow.Current
+                        }.ShowDialog();
+                    }
                 }
             }
         }

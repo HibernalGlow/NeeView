@@ -120,6 +120,13 @@
                     <Rectangle Style="{StaticResource VerticalSelectedStyle}" />
                     <CheckBox DockPanel.Dock="Left" Style="{StaticResource ItemCheckBoxStyle}"
                               Visibility="{Binding DataContext.IsMultiSelectMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Button DockPanel.Dock="Left" Width="24" Height="24" Padding="2" Margin="2,0"
+                            Visibility="{Binding DataContext.IsDeleteMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Command="{Binding DataContext.DeleteItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="删除到回收站">
+                        <TextBlock Text="🗑️" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Button>
                     <local:FolderListIcon DockPanel.Dock="Right" FolderItem="{Binding}" Margin="1" />
                     <TextBlock x:Name="FileNameTextBlock" Style="{StaticResource NormalNameStyle}" Margin="5,1" Opacity="{Binding PendingCount, Converter={StaticResource PendingCountToOpacityConverter}}" />
                 </DockPanel>
@@ -130,6 +137,13 @@
                     <Rectangle Style="{StaticResource VerticalSelectedStyle}" />
                     <CheckBox DockPanel.Dock="Left" Style="{StaticResource ItemCheckBoxStyle}"
                               Visibility="{Binding DataContext.IsMultiSelectMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Button DockPanel.Dock="Left" Width="24" Height="24" Padding="2" Margin="2,0"
+                            Visibility="{Binding DataContext.IsDeleteMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Command="{Binding DataContext.DeleteItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="删除到回收站">
+                        <TextBlock Text="🗑️" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Button>
                     <DockPanel LastChildFill="True" Margin="2">
                         <local:PanelListContentImage Thumbnail="{Binding Thumbnail}" Opacity="{Binding PendingCount, Converter={StaticResource PendingCountToOpacityConverter}}" />
                         <DockPanel Style="{StaticResource DetailToolTipDockPanel}">
@@ -155,6 +169,13 @@
                     <Rectangle Style="{StaticResource VerticalSelectedStyle}" />
                     <CheckBox DockPanel.Dock="Left" Style="{StaticResource ItemCheckBoxStyle}"
                               Visibility="{Binding DataContext.IsMultiSelectMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Button DockPanel.Dock="Left" Width="24" Height="24" Padding="2" Margin="2,0"
+                            Visibility="{Binding DataContext.IsDeleteMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Command="{Binding DataContext.DeleteItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="删除到回收站">
+                        <TextBlock Text="🗑️" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Button>
                     <DockPanel Margin="0,0" HorizontalAlignment="Stretch" LastChildFill="False">
                         <DockPanel DockPanel.Dock="Bottom" Style="{StaticResource DetailToolTipDockPanel}" Margin="2">
                             <local:FolderListIcon DockPanel.Dock="Right" FolderItem="{Binding}" />
@@ -171,6 +192,13 @@
                         <local:PanelListThumbnailImage Thumbnail="{Binding Thumbnail}" Opacity="{Binding PendingCount, Converter={StaticResource PendingCountToOpacityConverter}}" />
                         <CheckBox Style="{StaticResource ItemCheckBoxStyle}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2"
                                   Visibility="{Binding DataContext.IsMultiSelectMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <Button Width="24" Height="24" Padding="2" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2"
+                                Visibility="{Binding DataContext.IsDeleteMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Command="{Binding DataContext.DeleteItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                ToolTip="删除到回收站">
+                            <TextBlock Text="🗑️" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Button>
                         <StackPanel Style="{StaticResource OverrideIconStackPanelStyle}">
                             <local:FolderListIcon DockPanel.Dock="Right" FolderItem="{Binding}" VerticalAlignment="Top" IsKeepArea="False" />
                         </StackPanel>

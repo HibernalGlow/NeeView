@@ -136,6 +136,12 @@
                                       IsChecked="{Binding IsMultiSelectMode}">
                             <TextBlock Text="✅" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         </ToggleButton>
+                        <ToggleButton x:Name="DeleteModeButton" Style="{StaticResource FolderListToggleButtonStyle}" TabIndex="2" 
+                                      ToolTip="回收模式"
+                                      IsChecked="{Binding IsDeleteMode}"
+                                      Command="{Binding ToggleDeleteMode}">
+                            <TextBlock Text="🗑️" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </ToggleButton>
                         <Button x:Name="FoderTreeButton" Style="{StaticResource FolderListButtonStyle}" TabIndex="2" ToolTip="{properties:TextBinding Word.FoldersTree}"
                                 Command="{Binding ToggleVisibleFoldersTree}">
                             <Image Source="{StaticResource ic_treeview_a}" />
